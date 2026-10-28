@@ -222,7 +222,7 @@ def main():
     ap.add_argument("--skip-shots", action="store_true")
     ap.add_argument("--report-only", action="store_true", help="reuse saved scores, redo bootstrap and reports")
     ap.add_argument("--grids", choices=sorted(GRID_SETS), default="primary",
-                    help="hyperparameter grids; extended is used for the post hoc sensitivity analysis")
+                    help="hyperparameter grids; extended and extended_all are used for the post hoc sensitivity analyses")
     args = ap.parse_args()
     if args.smoke:
         args.limit = args.limit or 300
@@ -245,7 +245,7 @@ def main():
     else:
         if not (score_dir / "ref_hgb_full.npz").exists():
             reference_models(sets, out, score_dir)
-        if args.grids == "extended" and not (out / "kernel_diagnostics.csv").exists():
+        if args.grids != "primary" and not (out / "kernel_diagnostics.csv").exists():
             from sepsis6q import diagnostics
             diagnostics.kernel_diagnostics(sets, out, n=headline, seed=seeds[0])
             log("kernel diagnostics: done")

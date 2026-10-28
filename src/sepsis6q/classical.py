@@ -36,7 +36,14 @@ EXTENDED_GRIDS = {
     "qsvm_product": {"C": [0.1, 1.0, 10.0], "bandwidth": [0.02, 0.04, 0.08, 0.16, 0.25, 0.5, 1.0],
                      "reps": [1, 2]},
 }
-GRID_SETS = {"primary": GRIDS, "extended": EXTENDED_GRIDS}
+# The primary run also hit grid edges for logistic regression (C) and boosted trees (learning rate, depth), so a
+# second sensitivity run widens every model, to check that widening only the kernel models is not what matters.
+EXTENDED_ALL_GRIDS = {
+    **EXTENDED_GRIDS,
+    "logreg": {"C": [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]},
+    "hgb": {"learning_rate": [0.01, 0.03, 0.1, 0.3], "max_depth": [1, 2, 3, 4], "max_iter": [100, 300, 600]},
+}
+GRID_SETS = {"primary": GRIDS, "extended": EXTENDED_GRIDS, "extended_all": EXTENDED_ALL_GRIDS}
 
 
 def grid(name, grids=None):

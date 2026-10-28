@@ -32,3 +32,12 @@ def test_gram_diagnostics_on_known_matrices():
     assert abs(perfect["centered_alignment"] - 1.0) < 1e-12
     ones = gram_diagnostics(np.ones((4, 4)), y)
     assert ones["var_offdiag"] == 0.0 and ones["mean_offdiag"] == 1.0
+
+
+def test_extended_all_grids_contain_every_primary_value():
+    from sepsis6q.classical import EXTENDED_ALL_GRIDS
+
+    for name, primary in GRIDS.items():
+        for key, values in primary.items():
+            assert set(values) <= set(EXTENDED_ALL_GRIDS[name][key]), (name, key)
+    assert EXTENDED_ALL_GRIDS["qsvm_zz"] == EXTENDED_GRIDS["qsvm_zz"]
