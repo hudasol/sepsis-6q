@@ -244,6 +244,36 @@ def block_runs(d):
     return table(["Model", "N", "Draw seed", "Set", "Sensitivity at 5% FPR", "AUROC", "AUPRC", "Prevalence"], rows)
 
 
+def block_verdict(d):
+    b, h, m = d["boot"], d["headline"], d["metrics"]
+    best = h["best_matched_classical"]
+    out = []
+    for s, label in SETS.items():
+        diff = b[(b["set"] == s) & (b["comparison"] == f"qsvm_zz minus {best}")].set_index("metric")
+        primary = diff.loc["sens_at_5fpr"]
+        claim = "an improvement can be claimed" if primary["ci_low"] > 0 else "no improvement can be claimed"
+        out.append(f"* Primary question, {label[0].lower() + label[1:]}: the entangling QSVM minus "
+                   f"{NAMES[best]} difference in sensitivity at 5% FPR was {ci(primary)}, so {claim}. "
+                   f"AUROC difference {ci(diff.loc['auroc'])}, AUPRC difference {ci(diff.loc['auprc'])}.")
+    for s, label in SETS.items():
+        ctrl = b[(b["set"] == s) & (b["comparison"] == "qsvm_zz minus qsvm_product")
+                 & (b["metric"] == "sens_at_5fpr")].iloc[0]
+        tail = "" if ctrl["ci_low"] > 0 else " The data therefore do not support a claim that entanglement matters."
+        out.append(f"* Entanglement control, {label[0].lower() + label[1:]}: entangling minus product map "
+                   f"difference {ci(ctrl)}.{tail}")
+    for s, label in SETS.items():
+        g = m[m["set"] == s].groupby(["N", "model"])["sens_at_5fpr"].mean().unstack()
+        parts = []
+        for n in g.index:
+            row = g.loc[n]
+            top = row[["logreg", "rbf_svm", "hgb"]]
+            parts.append(f"N = {n}: QSVM {row['qsvm_zz']:.3f} vs best classical {top.max():.3f} "
+                         f"({NAMES[top.idxmax()]})")
+        out.append(f"* Small data setting, {label[0].lower() + label[1:]} (mean over draws, descriptive only, "
+                   f"no intervals): " + "; ".join(parts) + ".")
+    return "\n".join(out)
+
+
 def block_status(d):
     c, i = d["counts"], d["info"]
     files = f"{c['raw_A']['files']:,} set A files and {c['raw_B']['files']:,} set B files"
@@ -253,7 +283,7 @@ def block_status(d):
             f"{i['seeds']} on {files}, before the full run. They will be replaced by the full run.")
 
 
-BLOCKS = {"status": block_status, "runs": block_runs, "summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
+BLOCKS = {"status": block_status, "verdict": block_verdict, "runs": block_runs, "summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
           "paired": block_paired, "deployment": block_deployment, "learning": block_learning,
           "params": block_params, "resources": block_resources, "efficiency": block_efficiency,
           "shots": block_shots, "runtime": block_runtime}
