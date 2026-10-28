@@ -63,6 +63,8 @@ def load(res):
     out["sens_all"] = load_sensitivity(res / "sensitivity_all")
     out["timing"] = read_file(res / "timings_clean.csv")
     out["ceiling"] = read_file(res / "ceiling_metrics.csv")
+    out["ceiling_boot"] = read_file(res / "ceiling_bootstrap.csv")
+    out["ceiling_info"] = read_file(res / "ceiling_info.json")
     return out
 
 
@@ -333,21 +335,31 @@ def conclusion(prim, post):
     return "no improvement and no deficit can be claimed" + tail
 
 
+def posthoc_runs(d):
+    """(description, paired difference rows) for each post hoc run that is present."""
+    runs = []
+    for key, what, section in (("sens", "wider bandwidth and gamma grids", "7.8"),
+                               ("sens_all", "every grid widened", "7.8.1")):
+        if d.get(key):
+            runs.append((what, section, diff_rows(d[key]["boot"], d[key]["headline"])[1]))
+    return runs
+
+
 def posthoc_sentence(d):
     """One sentence for the summary: the paired differences under the wider grids."""
     _, prim = diff_rows(d["boot"], d["headline"])
-    parts = []
-    for key, what in (("sens", "wider bandwidth and gamma grids (section 7.8)"),
-                      ("sens_all", "every grid widened (section 7.8.1)")):
-        if not d.get(key):
-            continue
-        _, post = diff_rows(d[key]["boot"], d[key]["headline"])
-        parts.append(f"with {what} the entangling QSVM minus best matched classical difference was "
-                     f"{ci(post['test_A'])} on the internal test and {ci(post['test_B'])} on the external test, "
-                     f"so {conclusion(prim, post)}")
+    runs = posthoc_runs(d)
+    parts = [f"with {what} (section {sec}) the entangling QSVM minus best matched classical difference was "
+             f"{ci(post['test_A'])} on the internal test and {ci(post['test_B'])} on the external test"
+             for what, sec, post in runs]
+    verdicts = {conclusion(prim, post) for _, _, post in runs}
+    if len(verdicts) == 1:
+        tail = f", so {verdicts.pop()}" if len(runs) == 1 else f"; in both cases {verdicts.pop()}"
+    else:
+        tail = "; " + "; ".join(f"under {what} {conclusion(prim, post)}" for what, _, post in runs)
     label = "Post hoc check" if len(parts) == 1 else "Post hoc checks"
     return f"{label}, added after the primary results were seen and leaving the prespecified answer " \
-           "unchanged: " + "; ".join(parts) + "."
+           "unchanged: " + "; ".join(parts) + tail + "."
 
 
 def block_glance_answer(d):
@@ -360,10 +372,14 @@ def block_glance_answer(d):
             f"internal test and {q['test_B']:.3f} on the external test at a 5% false positive rate, against "
             f"{c['test_A']:.3f} and {c['test_B']:.3f} for the best matched classical model ({NAMES[best]}), so the "
             f"prespecified question is answered {'yes' if claim else 'no'}")
-    if d.get("sens"):
-        _, post = diff_rows(d["sens"]["boot"], d["sens"]["headline"])
-        text += (f"; a post hoc rerun with wider bandwidth and gamma grids (section 7.8) changed the paired "
-                 f"differences to {ci(post['test_A'])} and {ci(post['test_B'])}, so {conclusion(prim, post)}")
+    runs = posthoc_runs(d)
+    if runs:
+        diffs = ", and to ".join(f"{post['test_A']['estimate']:+.3f} and {post['test_B']['estimate']:+.3f} "
+                                 f"with {what} (section {sec})" for what, sec, post in runs)
+        verdicts = {conclusion(prim, post) for _, _, post in runs}
+        tail = verdicts.pop() if len(verdicts) == 1 else "; ".join(conclusion(prim, post) for _, _, post in runs)
+        text += (f"; post hoc reruns with wider tuning grids changed the paired differences to {diffs}, so "
+                 f"{tail}")
     return text + "."
 
 
@@ -512,6 +528,61 @@ def block_sens_all_params(d):
     return table(["Model", "Selected configuration per draw (every grid widened)"], rows)
 
 
+# Clean timings and the classical ceiling reference (README sections 7.5 and 7.9)
+
+
+def block_timing(d):
+    t = d["timing"]
+    g = t.groupby(["model", "N"]).agg(tune=("tune_seconds", "mean"), fit=("train_seconds", "mean"),
+                                      pred=("predict_seconds", "mean"), rows=("predict_rows", "first"),
+                                      sv=("n_support", "mean")).reset_index()
+    order = {m: i for i, m in enumerate(MATCHED)}
+    g = g.sort_values(["N", "model"], key=lambda col: col.map(order) if col.name == "model" else col)
+    rows = [[NAMES[x.model], x.N, f"{x.tune:.1f}", f"{x.fit:.2f}", f"{x.pred / x.rows * 1e6:.2f}",
+             f"{x.sv:.0f}" if x.sv >= 0 else ""] for x in g.itertuples()]
+    h = t.iloc[0]
+    return table(["Model", "N", "Tuning time (s)", "Final fit time (s)", "Prediction time per 1000 rows (ms)",
+                  "Support vectors"], rows) + (
+        f"\n\nMachine: {h['cpu_model']}, {h['logical_cores']} logical cores, {h['platform']}, Python {h['python']}, "
+        f"numpy {h['numpy']}. Mean over {t['seed'].nunique()} draws, primary grids, one process with nothing else "
+        f"running. Evaluation rows per fitted model: {int(t['predict_rows'].iloc[0]):,}.")
+
+
+def block_ceiling(d):
+    boot, c = d["ceiling_boot"], d["boot"]
+    best = d["headline"]["best_matched_classical"]
+    rows = []
+    for s, label in SETS.items():
+        g = boot[boot["set"] == s].set_index("metric")
+        rows.append([label, "Boosted trees, all raw columns (ceiling reference, not matched)",
+                     ci(g.loc["sens_at_5fpr"]), ci(g.loc["auroc"]), ci(g.loc["auprc"])])
+        for name, comp, tag in ((NAMES["ref_hgb_full"], "ref_hgb_full", ""),
+                                (f"{NAMES[best]}, N = {d['headline']['headline_N']} (matched)", best, "")):
+            r = c[(c["set"] == s) & (c["comparison"] == comp)].set_index("metric")
+            rows.append([label, name, ci(r.loc["sens_at_5fpr"]), ci(r.loc["auroc"]), ci(r.loc["auprc"])])
+    return table(["Test set", "Model", "Sensitivity at 5% FPR", "AUROC", "AUPRC"], rows)
+
+
+def block_ceiling_deployment(d):
+    m = d["ceiling"]
+    rows = []
+    for s, label in SETS.items():
+        g = m[m["set"] == s]
+        for spec in (95, 90):
+            rows.append([label, f"{spec}%", f3(g[f"spec{spec}_false_alarm_rate"].iloc[0]),
+                         f3(g[f"spec{spec}_sensitivity"].iloc[0]), f3(g[f"spec{spec}_patients_detected"].iloc[0]),
+                         f"{g[f'spec{spec}_false_alarms_per_100_patient_days'].iloc[0]:.1f}"])
+    return table(["Test set", "Validation specificity target", "Realised false alarm rate", "Row sensitivity",
+                  "Septic patients detected", "False alarms per 100 non septic patient days"], rows)
+
+
+def block_ceiling_info(d):
+    i = d["ceiling_info"]
+    groups = ", ".join(f"{v} {k}" for k, v in i["feature_groups"].items())
+    return (f"The ceiling model has {i['features']} features ({groups}) and was trained on all "
+            f"{i['training_rows']:,} rows of the training pool.")
+
+
 BLOCKS = {"status": block_status, "verdict": block_verdict, "runs": block_runs, "summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
           "paired": block_paired, "deployment": block_deployment, "learning": block_learning,
           "params": block_params, "resources": block_resources, "efficiency": block_efficiency,
@@ -521,7 +592,8 @@ BLOCKS = {"status": block_status, "verdict": block_verdict, "runs": block_runs, 
           "sens_headline": block_sens_headline, "sens_paired": block_sens_paired,
           "sens_learning": block_sens_learning, "diag": block_diag, "sens_all_grids": block_sens_all_grids,
           "sens_all_headline": block_sens_all_headline, "sens_all_paired": block_sens_all_paired,
-          "sens_all_params": block_sens_all_params}
+          "sens_all_params": block_sens_all_params, "timing": block_timing, "ceiling": block_ceiling,
+          "ceiling_deployment": block_ceiling_deployment, "ceiling_info": block_ceiling_info}
 
 
 def main():
