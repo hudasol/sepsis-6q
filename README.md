@@ -501,7 +501,7 @@ What the wider range changes:
 * The entangling QSVM selected a bandwidth of 0.08 in all three draws at N = 2000, below the smallest value of the primary grid, so the grid edge of the primary run was binding.
 * At N = 2000 the entangling QSVM is level with the best matched classical model on both test sets: the intervals of the paired difference include zero, so neither an improvement nor a deficit can be claimed. The deficit on the external test in the primary analysis did not persist, so it was in part a consequence of the grid edge.
 * In sensitivity at 5% FPR the product map control is no longer distinguishable from the entangling map on either test set, so the data still do not support a claim that entanglement matters. The advantage of the product map on the external test in the primary analysis did not persist in this metric, although its AUROC on the external test is still slightly higher than that of the entangling map (the interval of the difference excludes zero).
-* At N = 250 the entangling QSVM remains clearly the lowest model on both test sets. From N = 500 it is within about 0.015 of the best matched model on both test sets (descriptive only, no intervals).
+* At N = 250 the entangling QSVM remains the lowest model on both test sets. From N = 500 it is within about 0.015 of the best matched model on both test sets (descriptive only, no intervals).
 * Caveats: the wider grid gives the kernel models more configurations to choose from, and selection among more configurations on a small cross validation sample can overfit that sample; the fixed test sets are what would show this. Nothing here is a confirmatory claim, so no correction for multiple comparisons was applied.
 
 #### Kernel diagnostics
@@ -595,6 +595,40 @@ Paired difference in sensitivity at 5% FPR, entangling QSVM minus the best match
 * Boosted trees again chose the smallest learning rate of their widened grid (0.01) in two of three draws at N = 2000, so their grid edge is still binding. Conclusions here are limited to the grids that were tried.
 * Taken together, sections 7.8 and 7.8.1 show that the primary result of a lower QSVM depended on the range of the tuning grid, so the robust statement is that no difference between the entangling QSVM and the best classical model can be detected at these sample sizes, not that the QSVM is worse. They do not show an advantage either.
 
+### 7.9 Classical ceiling reference (not matched, not usable with eight qubits)
+
+The matched comparison limits every model to eight vital sign features, and every matched model reaches an AUROC of about 0.65 to 0.66. To show what a strong classical system reaches when it is not limited in that way, gradient boosted trees (the settings of the full pool reference in section 7.1) were trained on the whole training pool with all raw clinical columns, the demographic and unit columns, ICULOS, the two trend features and one missingness indicator per clinical column (`scripts/ceiling_reference.py`, files `results/ceiling_*`). Laboratory columns are carried forward within each patient using past values only. This model is not part of the matched comparison, it cannot be run on eight qubits, and it is not used to select or judge any matched model. It uses the same patient split, evaluation subsets, operating points and patient level bootstrap.
+
+<!-- BEGIN ceiling_info -->
+The ceiling model was trained on all 471,468 rows of the training pool. Its inputs were 76 features (34 clinical columns, 2 trend features, 5 demographic and unit columns, 1 ICULOS, 34 missingness indicators). 2 of them had fewer than two distinct observed values in the training pool and were dropped (EtCO2, m_EtCO2), leaving 74.
+<!-- END ceiling_info -->
+
+<!-- BEGIN ceiling -->
+| Test set | Model | Sensitivity at 5% FPR | AUROC | AUPRC |
+|---|---|---|---|---|
+| Internal test (set A) | Boosted trees, all raw columns (ceiling reference, not matched) | 0.362 [0.310, 0.408] | 0.804 [0.782, 0.831] | 0.069 [0.059, 0.085] |
+| Internal test (set A) | Reference: boosted trees, full pool | 0.165 [0.137, 0.195] | 0.678 [0.653, 0.703] | 0.031 [0.026, 0.038] |
+| Internal test (set A) | Gradient boosted trees, N = 2000 (matched) | 0.142 [0.117, 0.171] | 0.659 [0.634, 0.684] | 0.027 [0.023, 0.032] |
+| External test (set B) | Boosted trees, all raw columns (ceiling reference, not matched) | 0.271 [0.228, 0.316] | 0.706 [0.670, 0.733] | 0.032 [0.026, 0.042] |
+| External test (set B) | Reference: boosted trees, full pool | 0.162 [0.131, 0.196] | 0.642 [0.615, 0.666] | 0.019 [0.015, 0.022] |
+| External test (set B) | Gradient boosted trees, N = 2000 (matched) | 0.154 [0.126, 0.180] | 0.651 [0.626, 0.680] | 0.019 [0.016, 0.024] |
+<!-- END ceiling -->
+
+Deployment style operating points of the ceiling model (thresholds from validation data, as in section 7.3):
+
+<!-- BEGIN ceiling_deployment -->
+| Test set | Validation specificity target | Realised false alarm rate | Row sensitivity | Septic patients detected | False alarms per 100 non septic patient days |
+|---|---|---|---|---|---|
+| Internal test (set A) | 95% | 0.047 | 0.344 | 0.450 | 38.0 |
+| Internal test (set A) | 90% | 0.096 | 0.492 | 0.600 | 123.3 |
+| External test (set B) | 95% | 0.041 | 0.246 | 0.310 | 50.4 |
+| External test (set B) | 90% | 0.068 | 0.320 | 0.413 | 103.8 |
+<!-- END ceiling_deployment -->
+
+* The ceiling model is far above every matched model and above the eight feature full pool reference in sensitivity at 5% FPR, with intervals that do not overlap on either test set. The modest absolute numbers of the matched models are therefore a consequence of the eight feature restriction, not of the task being unlearnable.
+* The gap is smaller on the external test, which is consistent with some of the added information being specific to the hospital system the model was trained on.
+* With one feature per qubit, a quantum kernel on all of these inputs would need many more qubits, or a feature reduction step that this study did not attempt. The ceiling is a reference level only; no claim is made that a quantum model could or could not reach it.
+
 ## 8. Trade offs, advantages and limitations
 
 ### 8.1 What the results say
@@ -614,7 +648,7 @@ Paired difference in sensitivity at 5% FPR, entangling QSVM minus the best match
 * The entangling map adds pairwise interaction phases between neighbouring vital signs at no cost in trainable parameters. Sections 7.1 and 7.2 test whether this inductive bias helps when labelled cases are scarce; the product map control isolates the contribution of the entangling gates.
 * The fidelity kernel is bounded in [0, 1] with unit diagonal. In the single shot noise experiment at N = 500 (section 7.6), AUROC stayed close to the exact kernel value at every shot count, while sensitivity at 5% FPR dropped at the lowest shot count and returned to the exact value at the highest. Every sampled Gram matrix had negative eigenvalues and needed projection, so a hardware version would need this correction step.
 
-In this study these properties did not translate into better detection. The honest summary is that a compact entangling quantum kernel is a working, well understood model that performs in the same range as classical models on this task, slightly below the best of them, and that its entangling gates did not help.
+In this study these properties did not translate into better detection. The honest summary is that a compact entangling quantum kernel is a working, well understood model that performs in the same range as classical models on this task, slightly below the best of them under the prespecified grids and level with them under wider tuning grids (sections 7.8 and 7.8.1), and that its entangling gates did not help.
 
 ### 8.3 Costs and trade offs
 
@@ -628,10 +662,10 @@ In this study these properties did not translate into better detection. The hone
 * The entangling QSVM selected the smallest bandwidth in its grid in every draw at N = 2000 (section 7.4), so its best configuration may lie below the grid. The primary grid was fixed before the run and was not changed after seeing results. The wider range was tested afterwards as a clearly labelled post hoc sensitivity analysis, with the same widening applied to the RBF gamma grid (section 7.8).
 * Small differences between models are within the spread over draws (section 7.2). The tuned configurations also vary between draws, which reflects how flat the cross validation surface is on this task.
 * All quantum results are from exact statevector simulation, plus one binomial shot sampling study at N = 500. No hardware noise model was used and nothing was run on quantum hardware. Gate noise and readout error would add further error to every kernel entry.
-* The eight features are deliberately simple and prespecified. Laboratory values, demographics and missingness indicators were not used, so absolute performance is modest for every model, quantum or classical. The wider feature set with missingness indicators for the reference models was cut for time.
+* The eight features are deliberately simple and prespecified. Laboratory values, demographics and missingness indicators were not used, so absolute performance is modest for every model, quantum or classical. Section 7.9 reports a clearly labelled reference with all columns and missingness indicators, which shows how far the eight feature restriction limits every matched model.
 * The test sets are fixed random patient subsets (300 septic patients each) rather than the full test partitions, chosen to keep the runtime of the QSVM within budget. Intervals reflect patient sampling, and the spread over the 3 draws is shown separately in the learning curves.
 * The early warning rows of one patient are correlated. The bootstrap resamples patients to account for this, but row level metrics still weight long stays more heavily.
-* Cut for time: the Brier score after Platt scaling (calibration was not assessed), the wider feature set, and a hardware noise model. Five draws per N were not used; three were.
+* Cut for time: the Brier score after Platt scaling (calibration was not assessed), and a hardware noise model. Five draws per N were not used; three were.
 * The data come from two hospital systems in the United States. Nothing here is validated for UAE patients or for clinical use.
 
 ## 9. Reproducibility
@@ -652,7 +686,7 @@ Reproducibility check performed: a fresh clone with a new virtual environment bu
 
 The first full run reads about 40,000 small files and caches them in `data/cache/`; on this machine that reading step was disk bound and took a large share of the wall clock time below. Later runs reuse the cache, and the model fitting, bootstrap and reports took less than half an hour. The full run is resumable: finished (N, draw, model) combinations recorded in `results/tuning.csv` are skipped.
 
-The post hoc sensitivity analyses of sections 7.8 and 7.8.1 reuse the same script with other grids and their own output folders, and take about 10 to 15 minutes each on a 2 core machine once the data are cached: `python scripts/run_pipeline.py --grids extended --out results/sensitivity --skip-shots` and `python scripts/run_pipeline.py --grids extended_all --out results/sensitivity_all --skip-shots`. `python scripts/render_readme_tables.py` regenerates every generated table and figure from the results files.
+The post hoc sensitivity analyses of sections 7.8 and 7.8.1 reuse the same script with other grids and their own output folders, and take about 10 to 15 minutes each on a 2 core machine once the data are cached: `python scripts/run_pipeline.py --grids extended --out results/sensitivity --skip-shots` and `python scripts/run_pipeline.py --grids extended_all --out results/sensitivity_all --skip-shots`. `python scripts/measure_timings.py` writes the clean timings of section 7.5 and `python scripts/ceiling_reference.py` the ceiling reference of section 7.9 (it reads every column of the raw files once, which takes a few minutes). `python scripts/render_readme_tables.py` regenerates every generated table and figure from the results files.
 
 <!-- BEGIN runtime -->
 Full run wall clock time: 40.1 minutes on the machine described above (sizes [250, 500, 1000, 2000], draw seeds [0, 1, 2], 500 bootstrap resamples).
