@@ -280,14 +280,25 @@ def block_verdict(d):
     for s, label in SETS.items():
         diff = b[(b["set"] == s) & (b["comparison"] == f"qsvm_zz minus {best}")].set_index("metric")
         primary = diff.loc["sens_at_5fpr"]
-        claim = "an improvement can be claimed" if primary["ci_low"] > 0 else "no improvement can be claimed"
+        if primary["ci_low"] > 0:
+            claim = "an improvement can be claimed"
+        elif primary["ci_high"] < 0:
+            claim = "the entangling QSVM was lower and no improvement can be claimed"
+        else:
+            claim = "no improvement can be claimed"
         out.append(f"* Primary question, {label[0].lower() + label[1:]}: the entangling QSVM minus "
                    f"{NAMES[best]} difference in sensitivity at 5% FPR was {ci(primary)}, so {claim}. "
                    f"AUROC difference {ci(diff.loc['auroc'])}, AUPRC difference {ci(diff.loc['auprc'])}.")
     for s, label in SETS.items():
         ctrl = b[(b["set"] == s) & (b["comparison"] == "qsvm_zz minus qsvm_product")
                  & (b["metric"] == "sens_at_5fpr")].iloc[0]
-        tail = "" if ctrl["ci_low"] > 0 else " The data therefore do not support a claim that entanglement matters."
+        if ctrl["ci_low"] > 0:
+            tail = ""
+        elif ctrl["ci_high"] < 0:
+            tail = (" The product map control was higher, so the data do not support a claim that "
+                    "entanglement matters.")
+        else:
+            tail = " The data therefore do not support a claim that entanglement matters."
         out.append(f"* Entanglement control, {label[0].lower() + label[1:]}: entangling minus product map "
                    f"difference {ci(ctrl)}.{tail}")
     for s, label in SETS.items():
