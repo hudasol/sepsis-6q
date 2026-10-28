@@ -1,5 +1,6 @@
 """Loading of the PhysioNet/CinC 2019 hourly records."""
 
+import hashlib
 import pickle
 from pathlib import Path
 
@@ -22,7 +23,9 @@ def load_set(set_name, limit=None, use_cache=True):
     Rows keep their original hourly order within each patient.
     """
     files = list_patient_files(set_name, limit)
-    cache = CACHE_DIR / f"set{set_name}_{len(files)}.pkl"
+    # The cache key covers the exact file list, so a changed download is never served from an old cache.
+    digest = hashlib.sha1("".join(p.name for p in files).encode()).hexdigest()[:10]
+    cache = CACHE_DIR / f"set{set_name}_{len(files)}_{digest}.pkl"
     if use_cache and cache.exists():
         with open(cache, "rb") as fh:
             return pickle.load(fh)
