@@ -86,7 +86,8 @@ def block_summary(d):
              & (b["metric"] == "sens_at_5fpr")].iloc[0]
     parts.append(f"Against its own product map control on the internal test set, the entangling map was "
                  f"{verdict(ctrl)} (difference {ci(ctrl)}).")
-    return f"Headline result at N = {h['headline_N']} balanced training rows, mean over 3 draws, " \
+    draws = len(d["info"]["seeds"]) if d["info"] else d["tuning"]["seed"].nunique()
+    return f"Headline result at N = {h['headline_N']} balanced training rows, mean over {draws} draws, " \
            f"patient level bootstrap with {h['resamples']} resamples. " + " ".join(parts)
 
 
