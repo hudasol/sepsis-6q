@@ -1,0 +1,75 @@
+{
+  "raw_A": {
+    "files": 20336,
+    "rows": 790215
+  },
+  "labels_A": {
+    "patients": 20336,
+    "septic_patients": 1790,
+    "monotone_septic": 1790,
+    "label1_at_first_row": 203,
+    "label1_rows_per_septic_min": 6,
+    "label1_rows_per_septic_median": 10.0,
+    "label1_rows_per_septic_max": 10
+  },
+  "task_A": {
+    "patients": 20336,
+    "septic_patients": 1790,
+    "rows": 783819,
+    "positive_rows": 10740,
+    "row_prevalence": 0.013702142969231416
+  },
+  "raw_B": {
+    "files": 20000,
+    "rows": 761995
+  },
+  "labels_B": {
+    "patients": 20000,
+    "septic_patients": 1142,
+    "monotone_septic": 1142,
+    "label1_at_first_row": 223,
+    "label1_rows_per_septic_min": 1,
+    "label1_rows_per_septic_median": 10.0,
+    "label1_rows_per_septic_max": 10
+  },
+  "task_B": {
+    "patients": 20000,
+    "septic_patients": 1142,
+    "rows": 758026,
+    "positive_rows": 6811,
+    "row_prevalence": 0.008985179927865272
+  },
+  "split_A_patients": {
+    "train": 12202,
+    "val": 4067,
+    "test": 4067
+  },
+  "eval_train": {
+    "patients": 12202,
+    "septic_patients": 1074,
+    "rows": 471468,
+    "positive_rows": 6444,
+    "row_prevalence": 0.013667947771640918
+  },
+  "eval_val": {
+    "patients": 2272,
+    "septic_patients": 200,
+    "rows": 87819,
+    "positive_rows": 1200,
+    "row_prevalence": 0.013664468964574863
+  },
+  "eval_test_A": {
+    "patients": 3408,
+    "septic_patients": 300,
+    "rows": 130441,
+    "positive_rows": 1800,
+    "row_prevalence": 0.013799342231353639
+  },
+  "eval_test_B": {
+    "patients": 5254,
+    "septic_patients": 300,
+    "rows": 198929,
+    "positive_rows": 1795,
+    "row_prevalence": 0.009023319877946403
+  }
+}
