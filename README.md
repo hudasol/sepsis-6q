@@ -5,11 +5,11 @@ Team Kanban, Qiskit Fall Fest 2026, Quantum Machine Learning track.
 SEPSIS-6Q asks whether a compact quantum kernel support vector machine (QSVM) on eight qubits detects more hours before sepsis onset than strong classical models, when every model sees the same eight vital sign features, the same small set of labelled training rows and the same tuning budget. The data are the public PhysioNet/Computing in Cardiology Challenge 2019 records from two hospital systems: one system is used for training, validation and an internal test, and the other is held out as an external test. All quantum results come from exact statevector simulation on a laptop class CPU (plus one binomial shot sampling study); nothing was run on quantum hardware.
 
 <!-- BEGIN status -->
-Status: PRELIMINARY. The numbers below come from training sizes [1000] and draw seeds [0] on 20,331 set A files and 6,486 set B files, before the full run. They will be replaced by the full run.
+Status: final results from the full run on 20,336 set A files and 20,000 set B files.
 <!-- END status -->
 
 <!-- BEGIN summary -->
-Not available: the results files for this block are missing (TypeError).
+Headline result at N = 2000 balanced training rows, mean over 3 draws, patient level bootstrap with 500 resamples. On the internal test (set A), the entangling QSVM reached a sensitivity of 0.125 [0.104, 0.149] at a 5% false positive rate, against 0.142 [0.117, 0.171] for the best matched classical model (Gradient boosted trees, chosen on validation data). The paired difference was -0.018 [-0.035, 0.002], so the QSVM was not distinguishable from it at this sample size (the 95% interval includes zero). On the external test (set B), the entangling QSVM reached a sensitivity of 0.132 [0.106, 0.160] at a 5% false positive rate, against 0.154 [0.126, 0.180] for the best matched classical model (Gradient boosted trees, chosen on validation data). The paired difference was -0.022 [-0.040, -0.004], so the QSVM was lower, and the 95% interval excludes zero. Against its own product map control on the internal test (set A), the entangling map was not distinguishable from it at this sample size (the 95% interval includes zero) (difference -0.010 [-0.023, 0.002]). Against its own product map control on the external test (set B), the entangling map was lower, and the 95% interval excludes zero (difference -0.032 [-0.045, -0.021]). The prespecified question is answered no: the quantum kernel did not detect more pre onset hours at the same false alarm rate.
 <!-- END summary -->
 
 ## 1. Prespecified question
@@ -36,22 +36,24 @@ PhysioNet/Computing in Cardiology Challenge 2019 training data (Reyna et al., 20
 
 In the challenge, `SepsisLabel` is 1 from six hours before clinical onset of sepsis onwards. The exploratory check in `sepsis6q.data.label_behaviour` confirms this per patient: the table below counts septic patients whose label is a single run of zeros followed by ones, patients whose label is already 1 in the first row, and the number of label 1 rows per septic patient.
 
+What we found is reported in the table below and matches the documented behaviour: in every septic patient of both sets the label is a single run of zeros followed by a single run of ones, with no return to zero. The longest run of ones also shows that the published records of septic patients stop a few hours after onset, so most label 1 rows lie before onset. Some septic patients carry label 1 from their first row, which means that onset was within six hours of the start of their record; they are kept, and their positive rows are the rows before onset.
+
 Task definition. Onset is the first label 1 row plus six hours. For each septic patient, rows at or after onset are removed, because an alarm there is no longer an early warning. Positive rows are the label 1 rows before onset (at most six per patient). Negative rows are all earlier rows of septic patients and all rows of non septic patients.
 
 <!-- BEGIN data -->
 | Set | Patients | Hourly rows | Septic patients | Label monotone (0 then 1) | Label 1 from first row | Label 1 rows per septic patient (min / median / max) | Task rows | Positive task rows | Row prevalence |
 |---|---|---|---|---|---|---|---|---|---|
-| Set A | 20331 | 790106 | 1789 | 1789 of 1789 | 203 | 6 / 10 / 10 | 783714 | 10734 | 1.37% |
-| Set B | 6486 | 245698 | 360 | 360 of 360 | 70 | 1 / 10 / 10 | 244445 | 2153 | 0.88% |
+| Set A | 20336 | 790215 | 1790 | 1790 of 1790 | 203 | 6 / 10 / 10 | 783819 | 10740 | 1.37% |
+| Set B | 20000 | 761995 | 1142 | 1142 of 1142 | 223 | 1 / 10 / 10 | 758026 | 6811 | 0.90% |
 
-Set A patient split (all patients): 12198 training pool, 4066 validation, 4067 internal test.
+Set A patient split (all patients): 12202 training pool, 4067 validation, 4067 internal test.
 
 | Partition | Patients | Septic patients | Rows | Positive rows | Row prevalence |
 |---|---|---|---|---|---|
-| Training pool (set A, 60%) | 12198 | 1073 | 471880 | 6438 | 1.36% |
-| Validation subset (set A, 20% split) | 2272 | 200 | 88271 | 1200 | 1.36% |
-| Internal test subset (set A, 20% split) | 3408 | 300 | 130212 | 1800 | 1.38% |
-| External test subset (set B) | 5405 | 300 | 203541 | 1793 | 0.88% |
+| Training pool (set A, 60%) | 12202 | 1074 | 471468 | 6444 | 1.37% |
+| Validation subset (set A, 20% split) | 2272 | 200 | 87819 | 1200 | 1.37% |
+| Internal test subset (set A, 20% split) | 3408 | 300 | 130441 | 1800 | 1.38% |
+| External test subset (set B) | 5254 | 300 | 198929 | 1795 | 0.90% |
 <!-- END data -->
 
 ### 3.3 Splits
@@ -132,32 +134,72 @@ All tables and figures in this section are generated by `scripts/render_readme_t
 <!-- BEGIN runs -->
 | Model | N | Draw seed | Set | Sensitivity at 5% FPR | AUROC | AUPRC | Prevalence |
 |---|---|---|---|---|---|---|---|
-| Logistic regression | 1000 | 0 | test_A | 0.127 | 0.607 | 0.022 | 0.014 |
-| Logistic regression | 1000 | 0 | test_B | 0.149 | 0.608 | 0.017 | 0.009 |
-| RBF SVM | 1000 | 0 | test_A | 0.117 | 0.618 | 0.023 | 0.014 |
-| RBF SVM | 1000 | 0 | test_B | 0.155 | 0.646 | 0.017 | 0.009 |
-| Gradient boosted trees | 1000 | 0 | test_A | 0.120 | 0.611 | 0.023 | 0.014 |
-| Gradient boosted trees | 1000 | 0 | test_B | 0.138 | 0.643 | 0.018 | 0.009 |
-| QSVM, ZZ entangling map | 1000 | 0 | test_A | 0.097 | 0.614 | 0.021 | 0.014 |
-| QSVM, ZZ entangling map | 1000 | 0 | test_B | 0.125 | 0.641 | 0.017 | 0.009 |
-| QSVM, product map (control) | 1000 | 0 | test_A | 0.111 | 0.621 | 0.022 | 0.014 |
-| QSVM, product map (control) | 1000 | 0 | test_B | 0.124 | 0.642 | 0.016 | 0.009 |
-| Reference: logistic regression, full pool | 471880 | -1 | test_A | 0.129 | 0.613 | 0.023 | 0.014 |
-| Reference: logistic regression, full pool | 471880 | -1 | test_B | 0.150 | 0.611 | 0.017 | 0.009 |
-| Reference: boosted trees, full pool | 471880 | -1 | test_A | 0.142 | 0.642 | 0.027 | 0.014 |
-| Reference: boosted trees, full pool | 471880 | -1 | test_B | 0.138 | 0.633 | 0.016 | 0.009 |
+| Logistic regression | 2000 | 0 | test_A | 0.135 | 0.636 | 0.025 | 0.014 |
+| Logistic regression | 2000 | 0 | test_B | 0.140 | 0.608 | 0.018 | 0.009 |
+| RBF SVM | 2000 | 0 | test_A | 0.155 | 0.665 | 0.028 | 0.014 |
+| RBF SVM | 2000 | 0 | test_B | 0.169 | 0.658 | 0.021 | 0.009 |
+| Gradient boosted trees | 2000 | 0 | test_A | 0.140 | 0.672 | 0.027 | 0.014 |
+| Gradient boosted trees | 2000 | 0 | test_B | 0.140 | 0.650 | 0.018 | 0.009 |
+| QSVM, ZZ entangling map | 2000 | 0 | test_A | 0.130 | 0.659 | 0.027 | 0.014 |
+| QSVM, ZZ entangling map | 2000 | 0 | test_B | 0.137 | 0.644 | 0.017 | 0.009 |
+| QSVM, product map (control) | 2000 | 0 | test_A | 0.156 | 0.666 | 0.029 | 0.014 |
+| QSVM, product map (control) | 2000 | 0 | test_B | 0.167 | 0.659 | 0.020 | 0.009 |
+| Logistic regression | 2000 | 1 | test_A | 0.131 | 0.635 | 0.025 | 0.014 |
+| Logistic regression | 2000 | 1 | test_B | 0.145 | 0.604 | 0.017 | 0.009 |
+| RBF SVM | 2000 | 1 | test_A | 0.127 | 0.649 | 0.025 | 0.014 |
+| RBF SVM | 2000 | 1 | test_B | 0.149 | 0.652 | 0.018 | 0.009 |
+| Gradient boosted trees | 2000 | 1 | test_A | 0.147 | 0.651 | 0.027 | 0.014 |
+| Gradient boosted trees | 2000 | 1 | test_B | 0.170 | 0.652 | 0.020 | 0.009 |
+| QSVM, ZZ entangling map | 2000 | 1 | test_A | 0.114 | 0.651 | 0.025 | 0.014 |
+| QSVM, ZZ entangling map | 2000 | 1 | test_B | 0.114 | 0.634 | 0.016 | 0.009 |
+| QSVM, product map (control) | 2000 | 1 | test_A | 0.127 | 0.648 | 0.026 | 0.014 |
+| QSVM, product map (control) | 2000 | 1 | test_B | 0.157 | 0.650 | 0.018 | 0.009 |
+| Logistic regression | 2000 | 2 | test_A | 0.128 | 0.630 | 0.025 | 0.014 |
+| Logistic regression | 2000 | 2 | test_B | 0.160 | 0.633 | 0.021 | 0.009 |
+| RBF SVM | 2000 | 2 | test_A | 0.144 | 0.663 | 0.027 | 0.014 |
+| RBF SVM | 2000 | 2 | test_B | 0.148 | 0.655 | 0.019 | 0.009 |
+| Gradient boosted trees | 2000 | 2 | test_A | 0.141 | 0.654 | 0.026 | 0.014 |
+| Gradient boosted trees | 2000 | 2 | test_B | 0.152 | 0.652 | 0.019 | 0.009 |
+| QSVM, ZZ entangling map | 2000 | 2 | test_A | 0.129 | 0.664 | 0.026 | 0.014 |
+| QSVM, ZZ entangling map | 2000 | 2 | test_B | 0.145 | 0.662 | 0.018 | 0.009 |
+| QSVM, product map (control) | 2000 | 2 | test_A | 0.122 | 0.657 | 0.025 | 0.014 |
+| QSVM, product map (control) | 2000 | 2 | test_B | 0.170 | 0.652 | 0.020 | 0.009 |
+| Reference: logistic regression, full pool | 471468 | -1 | test_A | 0.135 | 0.645 | 0.026 | 0.014 |
+| Reference: logistic regression, full pool | 471468 | -1 | test_B | 0.148 | 0.614 | 0.018 | 0.009 |
+| Reference: boosted trees, full pool | 471468 | -1 | test_A | 0.165 | 0.678 | 0.031 | 0.014 |
+| Reference: boosted trees, full pool | 471468 | -1 | test_B | 0.162 | 0.642 | 0.019 | 0.009 |
 <!-- END runs -->
 
 ### 7.1 Headline comparison at N = 2000
 
 <!-- BEGIN headline -->
-Not available: the results files for this block are missing (TypeError).
+| Test set | Model | Sensitivity at 5% FPR | AUROC | AUPRC | AUPRC baseline (prevalence) |
+|---|---|---|---|---|---|
+| Internal test (set A) | Logistic regression | 0.131 [0.104, 0.162] | 0.634 [0.609, 0.661] | 0.025 [0.021, 0.031] | 0.014 |
+| Internal test (set A) | RBF SVM | 0.142 [0.118, 0.172] | 0.659 [0.635, 0.685] | 0.027 [0.023, 0.032] | 0.014 |
+| Internal test (set A) | Gradient boosted trees | 0.142 [0.117, 0.171] | 0.659 [0.634, 0.684] | 0.027 [0.023, 0.032] | 0.014 |
+| Internal test (set A) | QSVM, ZZ entangling map | 0.125 [0.104, 0.149] | 0.658 [0.634, 0.685] | 0.026 [0.022, 0.031] | 0.014 |
+| Internal test (set A) | QSVM, product map (control) | 0.135 [0.113, 0.162] | 0.657 [0.633, 0.683] | 0.026 [0.022, 0.031] | 0.014 |
+| Internal test (set A) | Reference: logistic regression, full pool | 0.135 [0.105, 0.165] | 0.645 [0.620, 0.675] | 0.026 [0.021, 0.033] | 0.014 |
+| Internal test (set A) | Reference: boosted trees, full pool | 0.165 [0.137, 0.195] | 0.678 [0.653, 0.703] | 0.031 [0.026, 0.038] | 0.014 |
+| External test (set B) | Logistic regression | 0.148 [0.116, 0.179] | 0.615 [0.588, 0.645] | 0.018 [0.015, 0.023] | 0.009 |
+| External test (set B) | RBF SVM | 0.155 [0.128, 0.185] | 0.655 [0.628, 0.681] | 0.019 [0.016, 0.023] | 0.009 |
+| External test (set B) | Gradient boosted trees | 0.154 [0.126, 0.180] | 0.651 [0.626, 0.680] | 0.019 [0.016, 0.024] | 0.009 |
+| External test (set B) | QSVM, ZZ entangling map | 0.132 [0.106, 0.160] | 0.646 [0.620, 0.671] | 0.017 [0.015, 0.021] | 0.009 |
+| External test (set B) | QSVM, product map (control) | 0.165 [0.136, 0.192] | 0.654 [0.627, 0.680] | 0.020 [0.016, 0.024] | 0.009 |
+| External test (set B) | Reference: logistic regression, full pool | 0.148 [0.114, 0.179] | 0.614 [0.584, 0.646] | 0.018 [0.015, 0.023] | 0.009 |
+| External test (set B) | Reference: boosted trees, full pool | 0.162 [0.131, 0.196] | 0.642 [0.615, 0.666] | 0.019 [0.015, 0.022] | 0.009 |
 <!-- END headline -->
 
 Paired differences (same bootstrap resamples):
 
 <!-- BEGIN paired -->
-Not available: the results files for this block are missing (TypeError).
+| Test set | Difference | Sensitivity at 5% FPR | AUROC | AUPRC |
+|---|---|---|---|---|
+| Internal test (set A) | QSVM, ZZ entangling map minus Gradient boosted trees | -0.018 [-0.035, 0.002] | -0.001 [-0.011, 0.009] | -0.001 [-0.003, 0.001] |
+| Internal test (set A) | QSVM, ZZ entangling map minus QSVM, product map (control) | -0.010 [-0.023, 0.002] | 0.001 [-0.005, 0.007] | -0.000 [-0.002, 0.001] |
+| External test (set B) | QSVM, ZZ entangling map minus Gradient boosted trees | -0.022 [-0.040, -0.004] | -0.005 [-0.017, 0.006] | -0.002 [-0.005, 0.000] |
+| External test (set B) | QSVM, ZZ entangling map minus QSVM, product map (control) | -0.032 [-0.045, -0.021] | -0.007 [-0.014, 0.000] | -0.003 [-0.005, -0.001] |
 <!-- END paired -->
 
 ![Headline intervals](results/headline_intervals.png)
@@ -167,18 +209,18 @@ Not available: the results files for this block are missing (TypeError).
 ![Learning curves](results/learning_curves.png)
 
 <!-- BEGIN learning -->
-| Test set | Model | N = 1000 |
-|---|---|---|
-| Internal test (set A) | Logistic regression | 0.127 ± 0.000 |
-| Internal test (set A) | RBF SVM | 0.117 ± 0.000 |
-| Internal test (set A) | Gradient boosted trees | 0.120 ± 0.000 |
-| Internal test (set A) | QSVM, ZZ entangling map | 0.097 ± 0.000 |
-| Internal test (set A) | QSVM, product map (control) | 0.111 ± 0.000 |
-| External test (set B) | Logistic regression | 0.149 ± 0.000 |
-| External test (set B) | RBF SVM | 0.155 ± 0.000 |
-| External test (set B) | Gradient boosted trees | 0.138 ± 0.000 |
-| External test (set B) | QSVM, ZZ entangling map | 0.125 ± 0.000 |
-| External test (set B) | QSVM, product map (control) | 0.124 ± 0.000 |
+| Test set | Model | N = 250 | N = 500 | N = 1000 | N = 2000 |
+|---|---|---|---|---|---|
+| Internal test (set A) | Logistic regression | 0.129 ± 0.004 | 0.127 ± 0.005 | 0.132 ± 0.005 | 0.131 ± 0.003 |
+| Internal test (set A) | RBF SVM | 0.118 ± 0.019 | 0.137 ± 0.015 | 0.138 ± 0.007 | 0.142 ± 0.012 |
+| Internal test (set A) | Gradient boosted trees | 0.105 ± 0.012 | 0.124 ± 0.013 | 0.137 ± 0.007 | 0.142 ± 0.003 |
+| Internal test (set A) | QSVM, ZZ entangling map | 0.073 ± 0.017 | 0.116 ± 0.010 | 0.123 ± 0.018 | 0.125 ± 0.007 |
+| Internal test (set A) | QSVM, product map (control) | 0.119 ± 0.021 | 0.139 ± 0.015 | 0.134 ± 0.006 | 0.135 ± 0.015 |
+| External test (set B) | Logistic regression | 0.126 ± 0.025 | 0.133 ± 0.002 | 0.139 ± 0.006 | 0.148 ± 0.009 |
+| External test (set B) | RBF SVM | 0.128 ± 0.021 | 0.141 ± 0.018 | 0.132 ± 0.020 | 0.155 ± 0.010 |
+| External test (set B) | Gradient boosted trees | 0.128 ± 0.021 | 0.114 ± 0.017 | 0.131 ± 0.015 | 0.154 ± 0.012 |
+| External test (set B) | QSVM, ZZ entangling map | 0.077 ± 0.021 | 0.117 ± 0.012 | 0.111 ± 0.009 | 0.132 ± 0.013 |
+| External test (set B) | QSVM, product map (control) | 0.126 ± 0.022 | 0.141 ± 0.016 | 0.126 ± 0.025 | 0.165 ± 0.005 |
 
 Values are mean ± standard deviation over the draw seeds.
 <!-- END learning -->
@@ -188,13 +230,48 @@ Values are mean ± standard deviation over the draw seeds.
 Thresholds chosen on validation data, mean over the 3 draws.
 
 <!-- BEGIN deployment -->
-Not available: the results files for this block are missing (TypeError).
+| Test set | Model | Validation specificity target | Realised false alarm rate | Row sensitivity | Septic patients detected | False alarms per 100 non septic patient days |
+|---|---|---|---|---|---|---|
+| Internal test (set A) | Logistic regression | 95% | 0.056 | 0.142 | 0.281 | 118.4 |
+| Internal test (set A) | Logistic regression | 90% | 0.105 | 0.234 | 0.436 | 228.7 |
+| Internal test (set A) | RBF SVM | 95% | 0.053 | 0.147 | 0.340 | 111.2 |
+| Internal test (set A) | RBF SVM | 90% | 0.104 | 0.250 | 0.490 | 222.3 |
+| Internal test (set A) | Gradient boosted trees | 95% | 0.052 | 0.146 | 0.342 | 109.9 |
+| Internal test (set A) | Gradient boosted trees | 90% | 0.102 | 0.243 | 0.489 | 221.7 |
+| Internal test (set A) | QSVM, ZZ entangling map | 95% | 0.052 | 0.129 | 0.332 | 109.3 |
+| Internal test (set A) | QSVM, ZZ entangling map | 90% | 0.102 | 0.244 | 0.480 | 218.5 |
+| Internal test (set A) | QSVM, product map (control) | 95% | 0.053 | 0.142 | 0.329 | 111.8 |
+| Internal test (set A) | QSVM, product map (control) | 90% | 0.103 | 0.245 | 0.487 | 222.7 |
+| Internal test (set A) | Reference: logistic regression, full pool | 95% | 0.055 | 0.142 | 0.270 | 115.1 |
+| Internal test (set A) | Reference: logistic regression, full pool | 90% | 0.103 | 0.237 | 0.443 | 222.5 |
+| Internal test (set A) | Reference: boosted trees, full pool | 95% | 0.049 | 0.163 | 0.427 | 101.1 |
+| Internal test (set A) | Reference: boosted trees, full pool | 90% | 0.098 | 0.280 | 0.590 | 204.3 |
+| External test (set B) | Logistic regression | 95% | 0.039 | 0.130 | 0.253 | 87.5 |
+| External test (set B) | Logistic regression | 90% | 0.082 | 0.199 | 0.341 | 186.4 |
+| External test (set B) | RBF SVM | 95% | 0.041 | 0.134 | 0.306 | 88.7 |
+| External test (set B) | RBF SVM | 90% | 0.083 | 0.225 | 0.424 | 184.3 |
+| External test (set B) | Gradient boosted trees | 95% | 0.036 | 0.117 | 0.261 | 77.9 |
+| External test (set B) | Gradient boosted trees | 90% | 0.076 | 0.209 | 0.394 | 169.6 |
+| External test (set B) | QSVM, ZZ entangling map | 95% | 0.036 | 0.097 | 0.238 | 80.4 |
+| External test (set B) | QSVM, ZZ entangling map | 90% | 0.074 | 0.189 | 0.379 | 167.5 |
+| External test (set B) | QSVM, product map (control) | 95% | 0.038 | 0.134 | 0.281 | 82.5 |
+| External test (set B) | QSVM, product map (control) | 90% | 0.076 | 0.219 | 0.412 | 169.0 |
+| External test (set B) | Reference: logistic regression, full pool | 95% | 0.034 | 0.108 | 0.197 | 73.4 |
+| External test (set B) | Reference: logistic regression, full pool | 90% | 0.070 | 0.184 | 0.333 | 159.3 |
+| External test (set B) | Reference: boosted trees, full pool | 95% | 0.029 | 0.113 | 0.273 | 61.8 |
+| External test (set B) | Reference: boosted trees, full pool | 90% | 0.061 | 0.189 | 0.447 | 134.3 |
 <!-- END deployment -->
 
 ### 7.4 Selected configurations at N = 2000
 
 <!-- BEGIN params -->
-Not available: the results files for this block are missing (TypeError).
+| Model | Selected configuration per draw | Mean best CV AUROC |
+|---|---|---|
+| Logistic regression | seed 0: {"C": 1.0}; seed 1: {"C": 10.0}; seed 2: {"C": 0.1} | 0.624 |
+| RBF SVM | seed 0: {"C": 10.0, "gamma": 1.0}; seed 1: {"C": 10.0, "gamma": 2.0}; seed 2: {"C": 1.0, "gamma": 4.0} | 0.640 |
+| Gradient boosted trees | seed 0: {"learning_rate": 0.03, "max_depth": 3, "max_iter": 100}; seed 1: {"learning_rate": 0.03, "max_depth": 2, "max_iter": 100}; seed 2: {"learning_rate": 0.03, "max_depth": 2, "max_iter": 100} | 0.639 |
+| QSVM, ZZ entangling map | seed 0: {"C": 0.1, "bandwidth": 0.25, "reps": 1}; seed 1: {"C": 1.0, "bandwidth": 0.25, "reps": 1}; seed 2: {"C": 0.1, "bandwidth": 0.25, "reps": 1} | 0.634 |
+| QSVM, product map (control) | seed 0: {"C": 10.0, "bandwidth": 0.25, "reps": 2}; seed 1: {"C": 10.0, "bandwidth": 0.5, "reps": 1}; seed 2: {"C": 0.1, "bandwidth": 1.0, "reps": 2} | 0.641 |
 <!-- END params -->
 
 ### 7.5 Quantum resources and efficiency
@@ -219,13 +296,28 @@ Timings (mean over draws) and the number of distinct circuits each estimator wou
 <!-- BEGIN efficiency -->
 | Model | N | Tuning time (s) | Final fit time (s) | Prediction time per 1000 rows (ms) | Support vectors | Circuits, exact states (N plus evaluation rows) | Circuits, sampled pairwise estimator |
 |---|---|---|---|---|---|---|---|
-| Gradient boosted trees | 1000 | 12.5 | 0.09 | 1.0 |  |  |  |
-| Logistic regression | 1000 | 0.3 | 0.01 | 0.0 |  |  |  |
-| QSVM, product map (control) | 1000 | 1.9 | 0.08 | 48.1 | 907 | 423,024 | 422,523,500 |
-| QSVM, ZZ entangling map | 1000 | 2.2 | 0.08 | 44.2 | 905 | 423,024 | 422,523,500 |
-| RBF SVM | 1000 | 3.0 | 0.05 | 117.0 | 906 |  |  |
+| Gradient boosted trees | 250 | 14.6 | 0.32 | 3.38 |  |  |  |
+| Logistic regression | 250 | 0.4 | 0.01 | 0.04 |  |  |  |
+| QSVM, product map (control) | 250 | 0.8 | 0.02 | 49.34 | 218 | 417,439 | 104,328,375 |
+| QSVM, ZZ entangling map | 250 | 0.8 | 0.02 | 53.84 | 232 | 417,439 | 104,328,375 |
+| RBF SVM | 250 | 0.7 | 0.01 | 11.35 | 219 |  |  |
+| Gradient boosted trees | 500 | 16.8 | 0.46 | 3.73 |  |  |  |
+| Logistic regression | 500 | 0.4 | 0.01 | 0.04 |  |  |  |
+| QSVM, product map (control) | 500 | 0.8 | 0.05 | 46.20 | 425 | 417,689 | 208,719,250 |
+| QSVM, ZZ entangling map | 500 | 0.9 | 0.03 | 43.72 | 442 | 417,689 | 208,719,250 |
+| RBF SVM | 500 | 1.0 | 0.02 | 17.71 | 422 |  |  |
+| Gradient boosted trees | 1000 | 10.9 | 0.18 | 1.97 |  |  |  |
+| Logistic regression | 1000 | 0.3 | 0.01 | 0.02 |  |  |  |
+| QSVM, product map (control) | 1000 | 1.5 | 0.10 | 38.58 | 832 | 418,189 | 417,688,500 |
+| QSVM, ZZ entangling map | 1000 | 1.8 | 0.13 | 36.34 | 854 | 418,189 | 417,688,500 |
+| RBF SVM | 1000 | 1.9 | 0.05 | 20.61 | 827 |  |  |
+| Gradient boosted trees | 2000 | 15.0 | 0.10 | 0.96 |  |  |  |
+| Logistic regression | 2000 | 0.4 | 0.01 | 0.04 |  |  |  |
+| QSVM, product map (control) | 2000 | 6.7 | 0.37 | 79.10 | 1721 | 419,189 | 836,377,000 |
+| QSVM, ZZ entangling map | 2000 | 6.8 | 0.34 | 68.58 | 1739 | 419,189 | 836,377,000 |
+| RBF SVM | 2000 | 7.7 | 0.26 | 55.22 | 1690 |  |  |
 
-Evaluation rows per fitted model (validation plus both test subsets): 422,024.
+Evaluation rows per fitted model (validation plus both test subsets): 417,189.
 <!-- END efficiency -->
 
 ### 7.6 Shot noise
@@ -233,14 +325,55 @@ Evaluation rows per fitted model (validation plus both test subsets): 422,024.
 At N = 500 (draw seed 0, the tuned entangling configuration), every kernel entry, training and test, was replaced by a binomial estimate with a finite number of shots. Noisy training Gram matrices that were not positive semi definite were projected by clipping negative eigenvalues to zero.
 
 <!-- BEGIN shots -->
-The shot noise study was not run.
+| Shots per entry | Sensitivity at 5% FPR (set A test) | AUROC | AUPRC | Smallest Gram eigenvalue before projection | Negative eigenvalues clipped |
+|---|---|---|---|---|---|
+| exact | 0.129 | 0.631 | 0.024 | -8.35e-16 | 0 |
+| 128 | 0.119 | 0.632 | 0.024 | -1.23e+00 | 181 |
+| 512 | 0.126 | 0.630 | 0.024 | -5.93e-01 | 164 |
+| 2048 | 0.127 | 0.632 | 0.024 | -2.92e-01 | 143 |
+| 8192 | 0.129 | 0.631 | 0.024 | -1.38e-01 | 126 |
 <!-- END shots -->
 
 ![Shot noise](results/shot_noise.png)
 
 ## 8. Trade offs, advantages and limitations
 
-Text in this section is written after the final run.
+### 8.1 What the results say
+
+<!-- BEGIN verdict -->
+* Primary question, internal test (set A): the entangling QSVM minus Gradient boosted trees difference in sensitivity at 5% FPR was -0.018 [-0.035, 0.002], so no improvement can be claimed. AUROC difference -0.001 [-0.011, 0.009], AUPRC difference -0.001 [-0.003, 0.001].
+* Primary question, external test (set B): the entangling QSVM minus Gradient boosted trees difference in sensitivity at 5% FPR was -0.022 [-0.040, -0.004], so no improvement can be claimed. AUROC difference -0.005 [-0.017, 0.006], AUPRC difference -0.002 [-0.005, 0.000].
+* Entanglement control, internal test (set A): entangling minus product map difference -0.010 [-0.023, 0.002]. The data therefore do not support a claim that entanglement matters.
+* Entanglement control, external test (set B): entangling minus product map difference -0.032 [-0.045, -0.021]. The data therefore do not support a claim that entanglement matters.
+* Small data setting, internal test (set A) (mean over draws, descriptive only, no intervals): N = 250: QSVM 0.073 vs best classical 0.129 (Logistic regression); N = 500: QSVM 0.116 vs best classical 0.137 (RBF SVM); N = 1000: QSVM 0.123 vs best classical 0.138 (RBF SVM); N = 2000: QSVM 0.125 vs best classical 0.142 (Gradient boosted trees).
+* Small data setting, external test (set B) (mean over draws, descriptive only, no intervals): N = 250: QSVM 0.077 vs best classical 0.128 (RBF SVM); N = 500: QSVM 0.117 vs best classical 0.141 (RBF SVM); N = 1000: QSVM 0.111 vs best classical 0.139 (Logistic regression); N = 2000: QSVM 0.132 vs best classical 0.155 (RBF SVM).
+<!-- END verdict -->
+
+### 8.2 Advantages of the quantum approach
+
+* The QSVM is a complete, small model: eight qubits, one or two repetitions, a kernel circuit of modest depth on a line of qubits (section 7.5), and three tuned numbers. Its hypothesis space is fixed by the feature map, which makes it easy to inspect and to compare with the RBF SVM, which uses the same solver.
+* The entangling map adds pairwise interaction phases between neighbouring vital signs at no cost in trainable parameters. Section 7.1 and 7.2 test whether this inductive bias helps when labelled cases are scarce; the product map control isolates the contribution of the entangling gates.
+* The fidelity kernel is bounded in [0, 1] with unit diagonal. In the single shot noise experiment at N = 500 (section 7.6), AUROC stayed close to the exact kernel value at every shot count, while sensitivity at 5% FPR dropped at the lowest shot count and returned to the exact value at the highest. Every sampled Gram matrix had negative eigenvalues and needed projection, so a hardware version would need this correction step.
+
+In this study these properties did not translate into better detection. The honest summary is that a compact entangling quantum kernel is a working, well understood model that performs in the same range as classical models on this task, slightly below the best of them, and that its entangling gates did not help.
+
+### 8.3 Costs and trade offs
+
+* Compute: in exact simulation the QSVM costs one 256 amplitude state per row and one overlap per row and support vector. At N = 2000 its prediction time per row is of the same order as the RBF SVM evaluated the same way (both are kernel machines with a similar number of support vectors), and one to two orders of magnitude slower than gradient boosted trees or logistic regression (section 7.5). Timings are wall clock times on a shared laptop: the runs at the two smallest N overlapped with a separate smoke test, which inflates their prediction times. On hardware, a sampled pairwise kernel estimator would need the number of circuits shown in section 7.5, which grows as N squared for training and as N times the number of evaluation rows for prediction, each repeated for every shot. For hourly monitoring of an intensive care unit this is a serious operational cost compared with a classical model that scores a row in microseconds.
+* Tuning: the QSVM has the same tuning budget as the RBF SVM, but each configuration changes the feature map, so a new Gram matrix is needed per bandwidth and repetition pair.
+* Scaling with N: the Gram matrix grows as N squared in memory and the SVM solver roughly as N squared to N cubed, as for any kernel SVM. The gradient boosted trees and logistic regression reference models, trained on the whole pool of hundreds of thousands of rows, show what a classical model can do when labels are not scarce.
+
+### 8.4 Limitations
+
+* Eight qubits are easy to simulate classically, so this study cannot show and does not claim any computational advantage.
+* The entangling QSVM selected the smallest bandwidth in its grid in every draw at N = 2000 (section 7.4), so its best configuration may lie below the grid. The grid was fixed before the run and was not widened after seeing results; a wider bandwidth range is a natural next experiment, with the same widening applied to the RBF gamma grid.
+* Small differences between models are within the spread over draws (section 7.2). The tuned configurations also vary between draws, which reflects how flat the cross validation surface is on this task.
+* All quantum results are from exact statevector simulation, plus one binomial shot sampling study at N = 500. No hardware noise model was used and nothing was run on quantum hardware. Gate noise and readout error would add further error to every kernel entry.
+* The eight features are deliberately simple and prespecified. Laboratory values, demographics and missingness indicators were not used, so absolute performance is modest for every model, quantum or classical. The wider feature set with missingness indicators for the reference models was cut for time.
+* The test sets are fixed random patient subsets (300 septic patients each) rather than the full test partitions, chosen to keep the runtime of the QSVM within budget. Intervals reflect patient sampling, and the spread over the 3 draws is shown separately in the learning curves.
+* The early warning rows of one patient are correlated. The bootstrap resamples patients to account for this, but row level metrics still weight long stays more heavily.
+* Cut for time: the Brier score after Platt scaling (calibration was not assessed), the wider feature set, and a hardware noise model. Five draws per N were not used; three were.
+* The data come from two hospital systems in the United States. Nothing here is validated for UAE patients or for clinical use.
 
 ## 9. Reproducibility
 
@@ -256,8 +389,10 @@ bash scripts/run_all.sh          # tests, smoke run, full run, README tables
 
 `bash scripts/run_all.sh --smoke` runs the tests and the smoke pipeline only (about 300 patients per set, a few minutes) and writes to `results/smoke/`, which is not committed. The full run writes incremental files to `results/` and can be resumed.
 
+The first full run reads about 40,000 small files and caches them in `data/cache/`; on this machine that reading step was disk bound and took a large share of the wall clock time below. Later runs reuse the cache, and the model fitting, bootstrap and reports took less than half an hour. The full run is resumable: finished (N, draw, model) combinations recorded in `results/tuning.csv` are skipped.
+
 <!-- BEGIN runtime -->
-Full run wall clock time: 6.1 minutes on the machine described above (sizes [1000], draw seeds [0], 500 bootstrap resamples).
+Full run wall clock time: 40.1 minutes on the machine described above (sizes [250, 500, 1000, 2000], draw seeds [0, 1, 2], 500 bootstrap resamples).
 <!-- END runtime -->
 
 ## 10. Requirement checklist
