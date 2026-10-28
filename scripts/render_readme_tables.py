@@ -578,9 +578,15 @@ def block_ceiling_deployment(d):
 
 def block_ceiling_info(d):
     i = d["ceiling_info"]
+    total = sum(i["feature_groups"].values())
     groups = ", ".join(f"{v} {k}" for k, v in i["feature_groups"].items())
-    return (f"The ceiling model has {i['features']} features ({groups}) and was trained on all "
-            f"{i['training_rows']:,} rows of the training pool.")
+    dropped = i.get("dropped_columns", [])
+    text = (f"The ceiling model was trained on all {i['training_rows']:,} rows of the training pool. Its inputs were "
+            f"{total} features ({groups}).")
+    if dropped:
+        text += (f" {len(dropped)} of them had fewer than two distinct observed values in the training pool and "
+                 f"were dropped ({', '.join(dropped)}), leaving {i['features']}.")
+    return text
 
 
 BLOCKS = {"status": block_status, "verdict": block_verdict, "runs": block_runs, "summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
