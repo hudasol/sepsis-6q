@@ -46,3 +46,4 @@ def test_chunked_decision_matches_sklearn():
     S, St = model.states(X), model.states(Xt)
     ref = SVC(kernel="precomputed", C=1.0).fit(kernel(S, S), y).decision_function(kernel(St, S))
     assert np.max(np.abs(model.decision_function(Xt) - ref)) < 1e-6
+

@@ -30,11 +30,35 @@ def grid(name):
     return [dict(zip(keys, vals)) for vals in itertools.product(*GRIDS[name].values())]
 
 
+class RBFSVM(SVC):
+    """scikit-learn RBF SVC whose decision function is evaluated in chunks with numpy.
+
+    Fitting is unchanged. Prediction uses the fitted support vectors, dual
+    coefficients and intercept, which gives the same values as libsvm but runs
+    multithreaded through matrix products.
+    """
+
+    def __init__(self, C=1.0, gamma=1.0, chunk=8192):
+        super().__init__(kernel="rbf", C=C, gamma=gamma)
+        self.chunk = chunk
+
+    def decision_function(self, X):
+        X = np.asarray(X, dtype=float)
+        sv = self.support_vectors_
+        sv_sq = (sv ** 2).sum(axis=1)
+        out = np.empty(len(X))
+        for start in range(0, len(X), self.chunk):
+            x = X[start:start + self.chunk]
+            d2 = (x ** 2).sum(axis=1)[:, None] + sv_sq[None, :] - 2.0 * x @ sv.T
+            out[start:start + self.chunk] = np.exp(-self.gamma * np.maximum(d2, 0.0)) @ self.dual_coef_[0]
+        return out + self.intercept_[0]
+
+
 def make_classical(name, params):
     if name == "logreg":
         return LogisticRegression(max_iter=5000, **params)
     if name == "rbf_svm":
-        return SVC(kernel="rbf", **params)
+        return RBFSVM(**params)
     if name == "hgb":
         return HistGradientBoostingClassifier(early_stopping=False, random_state=0, **params)
     raise KeyError(name)
