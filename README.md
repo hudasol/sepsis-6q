@@ -306,6 +306,37 @@ Timings (mean over draws) and the number of distinct circuits each estimator wou
 Evaluation rows per fitted model (validation plus both test subsets): 417,189.
 <!-- END efficiency -->
 
+Clean re-measurement. The timings above were taken on the shared laptop, and the runs at the two smallest N overlapped with another process. `scripts/measure_timings.py` therefore repeated tuning, the final fit and prediction for every matched model, training size and draw (primary grids, same rows) in a single process with nothing else running, on a different machine, and wrote `results/timings_clean.csv`. Absolute times are not comparable with the table above because the hardware differs, but this table has no overlap problem and shows how time grows with N.
+
+<!-- BEGIN timing -->
+| Model | N | Tuning time (s) | Final fit time (s) | Prediction time per 1000 rows (ms) | Support vectors |
+|---|---|---|---|---|---|
+| Logistic regression | 250 | 0.1 | 0.00 | 0.01 |  |
+| RBF SVM | 250 | 0.2 | 0.00 | 1.37 | 219 |
+| Gradient boosted trees | 250 | 4.3 | 0.07 | 3.33 |  |
+| QSVM, ZZ entangling map | 250 | 0.2 | 0.01 | 20.63 | 232 |
+| QSVM, product map (control) | 250 | 0.2 | 0.01 | 19.06 | 218 |
+| Logistic regression | 500 | 0.1 | 0.00 | 0.01 |  |
+| RBF SVM | 500 | 0.3 | 0.01 | 3.48 | 422 |
+| Gradient boosted trees | 500 | 4.7 | 0.10 | 3.65 |  |
+| QSVM, ZZ entangling map | 500 | 0.4 | 0.02 | 20.95 | 442 |
+| QSVM, product map (control) | 500 | 0.4 | 0.02 | 29.95 | 425 |
+| Logistic regression | 1000 | 0.1 | 0.00 | 0.01 |  |
+| RBF SVM | 1000 | 0.8 | 0.02 | 8.23 | 827 |
+| Gradient boosted trees | 1000 | 5.4 | 0.09 | 2.36 |  |
+| QSVM, ZZ entangling map | 1000 | 1.1 | 0.06 | 28.30 | 854 |
+| QSVM, product map (control) | 1000 | 1.0 | 0.06 | 31.31 | 832 |
+| Logistic regression | 2000 | 0.1 | 0.00 | 0.01 |  |
+| RBF SVM | 2000 | 2.4 | 0.09 | 23.60 | 1690 |
+| Gradient boosted trees | 2000 | 5.7 | 0.05 | 1.47 |  |
+| QSVM, ZZ entangling map | 2000 | 3.9 | 0.24 | 47.73 | 1739 |
+| QSVM, product map (control) | 2000 | 3.4 | 0.24 | 52.90 | 1721 |
+
+Machine: Intel(R) Xeon(R) Processor @ 2.10GHz, 2 logical cores, Linux-6.18.44-fc-v180-x86_64-with-glibc2.39, Python 3.13.18, numpy 2.5.4. Mean over 3 draws, primary grids, one process with nothing else running. Evaluation rows per fitted model: 417,189.
+<!-- END timing -->
+
+The QSVM prediction time grows from roughly 8 to 9 seconds at N = 250 to roughly 20 to 22 seconds at N = 2000, while its number of support vectors grows about eight fold. This is consistent with a cost of generating one state per evaluation row that does not depend on N, plus an overlap cost that grows with the number of support vectors; the RBF SVM time grows with the support vectors alone. At N = 2000 both kernel machines are well over an order of magnitude slower at prediction than logistic regression or boosted trees, as stated in section 8.3.
+
 ### 7.6 Shot noise
 
 At N = 500 (draw seed 0, the tuned entangling configuration), every kernel entry, training and test, was replaced by a binomial estimate with a finite number of shots. Noisy training Gram matrices that were not positive semi definite were projected by clipping negative eigenvalues to zero.
@@ -587,7 +618,7 @@ In this study these properties did not translate into better detection. The hone
 
 ### 8.3 Costs and trade offs
 
-* Compute: in exact simulation the QSVM costs one 256 amplitude state per row and one overlap per row and support vector. At N = 2000 its prediction time per row is of the same order as the RBF SVM evaluated the same way (both are kernel machines with a similar number of support vectors), and well over an order of magnitude slower than gradient boosted trees or logistic regression (section 7.5). Timings are wall clock times on a shared laptop: the runs at the two smallest N overlapped with a separate smoke test, which inflates their prediction times. On hardware, a sampled pairwise kernel estimator would need the number of circuits shown in section 7.5, which grows as N squared for training and as N times the number of evaluation rows for prediction, each repeated for every shot. For hourly monitoring of an intensive care unit this is a serious operational cost compared with a classical model that scores a row in microseconds.
+* Compute: in exact simulation the QSVM costs one 256 amplitude state per row and one overlap per row and support vector. At N = 2000 its prediction time per row is of the same order as the RBF SVM evaluated the same way (both are kernel machines with a similar number of support vectors), and well over an order of magnitude slower than gradient boosted trees or logistic regression (section 7.5). Timings are wall clock times on a shared laptop: the runs at the two smallest N overlapped with a separate smoke test, which inflates their prediction times; a clean re-measurement of all four sizes in one process, on a different machine, is given in section 7.5. On hardware, a sampled pairwise kernel estimator would need the number of circuits shown in section 7.5, which grows as N squared for training and as N times the number of evaluation rows for prediction, each repeated for every shot. For hourly monitoring of an intensive care unit this is a serious operational cost compared with a classical model that scores a row in microseconds.
 * Tuning: the QSVM has the same tuning budget as the RBF SVM, but each configuration changes the feature map, so a new Gram matrix is needed per bandwidth and repetition pair.
 * Scaling with N: the Gram matrix grows as N squared in memory and the SVM solver roughly as N squared to N cubed, as for any kernel SVM. The gradient boosted trees and logistic regression reference models, trained on the whole pool of hundreds of thousands of rows, show what a classical model can do when labels are not scarce.
 
