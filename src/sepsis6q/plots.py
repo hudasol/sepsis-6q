@@ -34,7 +34,7 @@ def _theme():
 def learning_curves(out):
     m = pd.read_csv(out / "metrics_runs.csv")
     ref = pd.read_csv(out / "reference_metrics.csv") if (out / "reference_metrics.csv").exists() else None
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5.0), sharey=True)
     for ax, set_name in zip(axes, ["test_A", "test_B"]):
         d = m[m["set"] == set_name]
         for model, st in STYLE.items():
@@ -55,9 +55,10 @@ def learning_curves(out):
         ax.set_title(SET_TITLE[set_name], color=ROSE)
         ax.set_xlabel("Training rows N (balanced)")
     axes[0].set_ylabel("Sensitivity at 5% false positive rate")
-    axes[1].legend(loc="lower right", fontsize=8)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8)
     fig.suptitle("Learning curves: mean over draws, band shows min to max", color=INK)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
     fig.savefig(out / "learning_curves.png", dpi=150)
     plt.close(fig)
 
