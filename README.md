@@ -8,8 +8,35 @@ SEPSIS-6Q asks whether a compact quantum kernel support vector machine (QSVM) on
 Status: final results from the full run on 20,336 set A files and 20,000 set B files.
 <!-- END status -->
 
+## At a glance
+
+**Question.** Does a compact eight qubit quantum kernel SVM warn of sepsis in intensive care patients earlier than strong classical models, when every model sees the same eight vital sign features, the same labelled training rows and the same tuning budget, judged by sensitivity at a fixed 5% false positive rate?
+
+**Answer.** <!-- BEGIN glance_answer -->
+At 2000 training rows the entangling QSVM reached a sensitivity of 0.125 on the internal test and 0.132 on the external test at a 5% false positive rate, against 0.142 and 0.154 for the best matched classical model (Gradient boosted trees), so the prespecified question is answered no; post hoc reruns with wider tuning grids changed the paired differences to +0.005 and +0.003 with wider bandwidth and gamma grids (section 7.8), and to +0.004 and +0.007 with every grid widened (section 7.8.1), so no improvement and no deficit can be claimed, and the deficit of the primary analysis on the external test (set B) did not persist.
+<!-- END glance_answer -->
+
+**Why the result is still informative.** The question, the metric and the training sizes were fixed before any model was trained, the comparison is matched, a product map control separates the effect of entanglement from the rest of the quantum model, and the quantum resources (circuits, timings, shot noise) are reported in full.
+
+<!-- BEGIN glance_table -->
+| Model | Internal test (set A): sensitivity at 5% FPR | Internal test AUROC | External test (set B): sensitivity at 5% FPR | External test AUROC |
+|---|---|---|---|---|
+| Logistic regression | 0.131 [0.104, 0.162] | 0.634 | 0.148 [0.116, 0.179] | 0.615 |
+| RBF SVM | 0.142 [0.118, 0.172] | 0.659 | 0.155 [0.128, 0.185] | 0.655 |
+| Gradient boosted trees | 0.142 [0.117, 0.171] | 0.659 | 0.154 [0.126, 0.180] | 0.651 |
+| QSVM, ZZ entangling map | 0.125 [0.104, 0.149] | 0.658 | 0.132 [0.106, 0.160] | 0.646 |
+| QSVM, product map (control) | 0.135 [0.113, 0.162] | 0.657 | 0.165 [0.136, 0.192] | 0.654 |
+| QSVM, ZZ entangling map, wider bandwidth grid (post hoc, section 7.8) | 0.148 [0.122, 0.175] | 0.660 | 0.157 [0.130, 0.185] | 0.645 |
+<!-- END glance_table -->
+
+Sensitivity is the fraction of positive, pre onset rows that raise an alarm at a 5% false positive rate, shown with its 95% patient level bootstrap interval. AUROC is a point estimate. Values are means over 3 draws of N = 2000 balanced training rows; the detailed results start in section 7.
+
+![Sensitivity at 5% false positive rate with 95% bootstrap intervals](results/headline_intervals.png)
+
+## Detailed summary
+
 <!-- BEGIN summary -->
-Headline result at N = 2000 balanced training rows, mean over 3 draws, patient level bootstrap with 500 resamples. On the internal test (set A), the entangling QSVM reached a sensitivity of 0.125 [0.104, 0.149] at a 5% false positive rate, against 0.142 [0.117, 0.171] for the best matched classical model (Gradient boosted trees, chosen on validation data). The paired difference was -0.018 [-0.035, 0.002], so the QSVM was not distinguishable from it at this sample size (the 95% interval includes zero). On the external test (set B), the entangling QSVM reached a sensitivity of 0.132 [0.106, 0.160] at a 5% false positive rate, against 0.154 [0.126, 0.180] for the best matched classical model (Gradient boosted trees, chosen on validation data). The paired difference was -0.022 [-0.040, -0.004], so the QSVM was lower, and the 95% interval excludes zero. Against its own product map control on the internal test (set A), the entangling map was not distinguishable from it at this sample size (the 95% interval includes zero) (difference -0.010 [-0.023, 0.002]). Against its own product map control on the external test (set B), the entangling map was lower, and the 95% interval excludes zero (difference -0.032 [-0.045, -0.021]). The prespecified question is answered no: the quantum kernel did not detect more pre onset hours at the same false alarm rate.
+Headline result at N = 2000 balanced training rows, mean over 3 draws, patient level bootstrap with 500 resamples. On the internal test (set A), the entangling QSVM reached a sensitivity of 0.125 [0.104, 0.149] at a 5% false positive rate, against 0.142 [0.117, 0.171] for the best matched classical model (Gradient boosted trees, chosen on validation data). The paired difference was -0.018 [-0.035, 0.002], so the QSVM was not distinguishable from it at this sample size (the 95% interval includes zero). On the external test (set B), the entangling QSVM reached a sensitivity of 0.132 [0.106, 0.160] at a 5% false positive rate, against 0.154 [0.126, 0.180] for the best matched classical model (Gradient boosted trees, chosen on validation data). The paired difference was -0.022 [-0.040, -0.004], so the QSVM was lower, and the 95% interval excludes zero. Against its own product map control on the internal test (set A), the entangling map was not distinguishable from it at this sample size (the 95% interval includes zero) (difference -0.010 [-0.023, 0.002]). Against its own product map control on the external test (set B), the entangling map was lower, and the 95% interval excludes zero (difference -0.032 [-0.045, -0.021]). The prespecified question is answered no: the quantum kernel did not detect more pre onset hours at the same false alarm rate. Post hoc checks, added after the primary results were seen and leaving the prespecified answer unchanged: with wider bandwidth and gamma grids (section 7.8) the entangling QSVM minus best matched classical difference was 0.005 [-0.012, 0.022] on the internal test and 0.003 [-0.013, 0.023] on the external test; with every grid widened (section 7.8.1) the entangling QSVM minus best matched classical difference was 0.004 [-0.013, 0.021] on the internal test and 0.007 [-0.009, 0.026] on the external test; in both cases no improvement and no deficit can be claimed, and the deficit of the primary analysis on the external test (set B) did not persist.
 <!-- END summary -->
 
 ## 1. Prespecified question
@@ -104,7 +131,7 @@ Tuning C, the bandwidth b and the repetition count is the fair counterpart of tu
 
 ### 5.2 Implementation
 
-Qiskit is the reference definition of the map (`sepsis6q.quantum.feature_map_circuit`). For speed, `sepsis6q.quantum.statevectors` is a batched numpy statevector simulator of the same map: since each repetition is a Hadamard layer followed by a diagonal phase, the state is computed with one product by the 256 by 256 Walsh Hadamard matrix and one elementwise phase per repetition. `tests/test_quantum.py` asserts that the numpy states equal Qiskit `Statevector` results to 1e-9 for random inputs, repetition counts 1 to 3 and both maps, and that the kernel equals the kernel of Qiskit's library `zz_feature_map` with linear entanglement. States are computed once per row, the training Gram matrix is one matrix product, and test decision values are computed in chunks against the support vectors only, never storing a full test by train matrix.
+Qiskit is the reference definition of the map (`sepsis6q.quantum.feature_map_circuit`). For speed, `sepsis6q.quantum.statevectors` is a batched numpy statevector simulator of the same map: since each repetition is a Hadamard layer followed by a diagonal phase, the state is computed with one product by the 256 by 256 Walsh Hadamard matrix and one elementwise phase per repetition. `tests/test_quantum.py` asserts that the numpy states equal Qiskit `Statevector` results to 1e-9 for random inputs, repetition counts 1 to 3 and both maps, and that the kernel equals the kernel of Qiskit's library `zz_feature_map` with linear entanglement. States are computed once per row, the training Gram matrix is one matrix product, and test decision values are computed in chunks against the support vectors only, never storing a full test by train matrix. Test overlaps use single precision complex arithmetic, which changes kernel values by about 1e-7 and halves the time; the training Gram matrix is computed in double precision.
 
 ### 5.3 Hypothesis, limitation addressed and what is not claimed
 
@@ -338,6 +365,205 @@ One row per matched model, draw and test set, plus the reference models.
 | Reference: boosted trees, full pool | 471468 | -1 | test_B | 0.162 | 0.642 | 0.019 | 0.009 |
 <!-- END runs -->
 
+### 7.8 Sensitivity analysis with a wider bandwidth range (post hoc)
+
+This analysis was added after the primary results were seen, because the entangling QSVM selected the smallest bandwidth in its grid (0.25) in every draw at N = 2000 (section 7.4), so its best configuration might lie below the grid. The prespecified answer in section 1 is unchanged, and the primary results in sections 7.1 to 7.7 were not recomputed. This section tests whether that answer is robust to a wider search range. It is exploratory and is labelled as post hoc wherever it is quoted.
+
+* The QSVM bandwidth grid and the RBF SVM gamma grid are widened towards smaller values, in the same way on both sides. Every primary value stays inside the wider grid, so this analysis can differ from the primary one only where a new value wins the same cross validation. The value 1.0 was kept in the bandwidth grid for that reason.
+* Logistic regression and boosted trees keep their primary grids here. Section 7.8.1 widens them as well.
+* Everything else is as in the primary run: training sizes 250, 500, 1000 and 2000, the same 3 draws and rows, patient grouped 3 fold cross validation on AUROC, the same validation based choice of the best matched classical model, and the same 500 resample patient bootstrap at N = 2000. Hyperparameters are chosen on training rows only; no test data are used for selection.
+* Command: `python scripts/run_pipeline.py --grids extended --out results/sensitivity --skip-shots`. Files are in `results/sensitivity/`. This run used a Linux cloud machine with 2 CPU cores, not the laptop of the primary run.
+
+<!-- BEGIN sens_grids -->
+| Model | Primary grid | Wider grid (this section) |
+|---|---|---|
+| Logistic regression | C in [0.001, 0.01, 0.1, 1.0, 10.0, 100.0] | unchanged |
+| RBF SVM | C in [0.1, 1.0, 10.0]; gamma in [0.25, 0.5, 1.0, 2.0, 4.0, 8.0] | C in [0.1, 1.0, 10.0]; gamma in [0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0] |
+| Gradient boosted trees | learning_rate in [0.03, 0.1, 0.3]; max_depth in [2, 3, 4]; max_iter in [100, 300] | unchanged |
+| QSVM, ZZ entangling map | C in [0.1, 1.0, 10.0]; bandwidth in [0.25, 0.5, 1.0]; reps in [1, 2] | C in [0.1, 1.0, 10.0]; bandwidth in [0.02, 0.04, 0.08, 0.16, 0.25, 0.5, 1.0]; reps in [1, 2] |
+| QSVM, product map (control) | C in [0.1, 1.0, 10.0]; bandwidth in [0.25, 0.5, 1.0]; reps in [1, 2] | C in [0.1, 1.0, 10.0]; bandwidth in [0.02, 0.04, 0.08, 0.16, 0.25, 0.5, 1.0]; reps in [1, 2] |
+<!-- END sens_grids -->
+
+Cross check of the new run against the primary run:
+
+<!-- BEGIN sens_check -->
+| Model | Runs (N and draw) with the same selected configuration as the primary run | Of those, rows (run and evaluation set) whose sensitivity at 5% FPR and AUROC agree to within 1e-6 | Largest absolute difference among them |
+|---|---|---|---|
+| Logistic regression | 12 of 12 | 36 of 36 | 0.0e+00 |
+| RBF SVM | 11 of 12 | 33 of 33 | 9.0e-07 |
+| Gradient boosted trees | 12 of 12 | 36 of 36 | 0.0e+00 |
+| QSVM, ZZ entangling map | 2 of 12 | 2 of 6 | 5.6e-06 |
+| QSVM, product map (control) | 11 of 12 | 7 of 33 | 5.6e-04 |
+| Reference: logistic regression, full pool | not tuned | 3 of 3 | 0.0e+00 |
+| Reference: boosted trees, full pool | not tuned | 3 of 3 | 0.0e+00 |
+
+The two runs used different machines and operating systems. Logistic regression, boosted trees and the reference models reproduce exactly. Where the selected configuration is unchanged, the kernel models agree with the primary run to within the largest difference shown, which is consistent with rounding differences between processors in the single precision overlaps used for kernel prediction. All other differences come from new configurations chosen from the wider grid.
+<!-- END sens_check -->
+
+Selected configurations at N = 2000:
+
+<!-- BEGIN sens_params -->
+| Model | Selected configuration per draw (wider grids) | Mean best CV AUROC |
+|---|---|---|
+| Logistic regression | seed 0: {"C": 1.0}; seed 1: {"C": 10.0}; seed 2: {"C": 0.1} | 0.624 |
+| RBF SVM | seed 0: {"C": 10.0, "gamma": 1.0}; seed 1: {"C": 10.0, "gamma": 2.0}; seed 2: {"C": 1.0, "gamma": 4.0} | 0.640 |
+| Gradient boosted trees | seed 0: {"learning_rate": 0.03, "max_depth": 3, "max_iter": 100}; seed 1: {"learning_rate": 0.03, "max_depth": 2, "max_iter": 100}; seed 2: {"learning_rate": 0.03, "max_depth": 2, "max_iter": 100} | 0.639 |
+| QSVM, ZZ entangling map | seed 0: {"C": 10.0, "bandwidth": 0.08, "reps": 1}; seed 1: {"C": 10.0, "bandwidth": 0.08, "reps": 1}; seed 2: {"C": 10.0, "bandwidth": 0.08, "reps": 2} | 0.640 |
+| QSVM, product map (control) | seed 0: {"C": 10.0, "bandwidth": 0.25, "reps": 2}; seed 1: {"C": 10.0, "bandwidth": 0.5, "reps": 1}; seed 2: {"C": 0.1, "bandwidth": 1.0, "reps": 2} | 0.641 |
+<!-- END sens_params -->
+
+Headline comparison at N = 2000 with the wider grids (mean over 3 draws, patient level bootstrap with 500 resamples):
+
+<!-- BEGIN sens_headline -->
+| Test set | Model | Sensitivity at 5% FPR | AUROC | AUPRC | AUPRC baseline (prevalence) |
+|---|---|---|---|---|---|
+| Internal test (set A) | Logistic regression | 0.131 [0.104, 0.162] | 0.634 [0.609, 0.661] | 0.025 [0.021, 0.031] | 0.014 |
+| Internal test (set A) | RBF SVM | 0.142 [0.118, 0.172] | 0.659 [0.635, 0.685] | 0.027 [0.023, 0.032] | 0.014 |
+| Internal test (set A) | Gradient boosted trees | 0.142 [0.117, 0.171] | 0.659 [0.634, 0.684] | 0.027 [0.023, 0.032] | 0.014 |
+| Internal test (set A) | QSVM, ZZ entangling map | 0.148 [0.122, 0.175] | 0.660 [0.635, 0.686] | 0.027 [0.023, 0.033] | 0.014 |
+| Internal test (set A) | QSVM, product map (control) | 0.135 [0.114, 0.162] | 0.657 [0.633, 0.683] | 0.026 [0.022, 0.031] | 0.014 |
+| Internal test (set A) | Reference: logistic regression, full pool | 0.135 [0.105, 0.165] | 0.645 [0.620, 0.675] | 0.026 [0.021, 0.033] | 0.014 |
+| Internal test (set A) | Reference: boosted trees, full pool | 0.165 [0.137, 0.195] | 0.678 [0.653, 0.703] | 0.031 [0.026, 0.038] | 0.014 |
+| External test (set B) | Logistic regression | 0.148 [0.116, 0.179] | 0.615 [0.588, 0.645] | 0.018 [0.015, 0.023] | 0.009 |
+| External test (set B) | RBF SVM | 0.155 [0.128, 0.185] | 0.655 [0.628, 0.681] | 0.019 [0.016, 0.023] | 0.009 |
+| External test (set B) | Gradient boosted trees | 0.154 [0.126, 0.180] | 0.651 [0.626, 0.680] | 0.019 [0.016, 0.024] | 0.009 |
+| External test (set B) | QSVM, ZZ entangling map | 0.157 [0.130, 0.185] | 0.645 [0.617, 0.671] | 0.019 [0.016, 0.024] | 0.009 |
+| External test (set B) | QSVM, product map (control) | 0.165 [0.136, 0.192] | 0.654 [0.627, 0.680] | 0.020 [0.016, 0.024] | 0.009 |
+| External test (set B) | Reference: logistic regression, full pool | 0.148 [0.114, 0.179] | 0.614 [0.584, 0.646] | 0.018 [0.015, 0.023] | 0.009 |
+| External test (set B) | Reference: boosted trees, full pool | 0.162 [0.131, 0.196] | 0.642 [0.615, 0.666] | 0.019 [0.015, 0.022] | 0.009 |
+<!-- END sens_headline -->
+
+Paired differences, primary grids against wider grids:
+
+<!-- BEGIN sens_paired -->
+| Test set | Difference at N = 2000 | Primary grids, sensitivity at 5% FPR | Wider grids, sensitivity at 5% FPR | Wider grids, AUROC |
+|---|---|---|---|---|
+| Internal test (set A) | Entangling QSVM minus best matched classical model (Gradient boosted trees) | -0.018 [-0.035, 0.002] | 0.005 [-0.012, 0.022] | 0.001 [-0.009, 0.011] |
+| Internal test (set A) | Entangling QSVM minus product map QSVM | -0.010 [-0.023, 0.002] | 0.013 [-0.002, 0.027] | 0.003 [-0.004, 0.010] |
+| External test (set B) | Entangling QSVM minus best matched classical model (Gradient boosted trees) | -0.022 [-0.040, -0.004] | 0.003 [-0.013, 0.023] | -0.007 [-0.019, 0.003] |
+| External test (set B) | Entangling QSVM minus product map QSVM | -0.032 [-0.045, -0.021] | -0.008 [-0.022, 0.006] | -0.009 [-0.017, -0.002] |
+<!-- END sens_paired -->
+
+Learning curves with the wider grids (sensitivity at 5% FPR):
+
+<!-- BEGIN sens_learning -->
+| Test set | Model | N = 250 | N = 500 | N = 1000 | N = 2000 |
+|---|---|---|---|---|---|
+| Internal test (set A) | Logistic regression | 0.129 ± 0.004 | 0.127 ± 0.005 | 0.132 ± 0.005 | 0.131 ± 0.003 |
+| Internal test (set A) | RBF SVM | 0.119 ± 0.019 | 0.137 ± 0.015 | 0.138 ± 0.007 | 0.142 ± 0.012 |
+| Internal test (set A) | Gradient boosted trees | 0.105 ± 0.012 | 0.124 ± 0.013 | 0.137 ± 0.007 | 0.142 ± 0.003 |
+| Internal test (set A) | QSVM, ZZ entangling map | 0.097 ± 0.033 | 0.136 ± 0.012 | 0.131 ± 0.012 | 0.148 ± 0.006 |
+| Internal test (set A) | QSVM, product map (control) | 0.119 ± 0.021 | 0.139 ± 0.015 | 0.134 ± 0.006 | 0.135 ± 0.015 |
+| External test (set B) | Logistic regression | 0.126 ± 0.025 | 0.133 ± 0.002 | 0.139 ± 0.006 | 0.148 ± 0.009 |
+| External test (set B) | RBF SVM | 0.128 ± 0.021 | 0.141 ± 0.018 | 0.132 ± 0.020 | 0.155 ± 0.010 |
+| External test (set B) | Gradient boosted trees | 0.128 ± 0.021 | 0.114 ± 0.017 | 0.131 ± 0.015 | 0.154 ± 0.012 |
+| External test (set B) | QSVM, ZZ entangling map | 0.090 ± 0.026 | 0.127 ± 0.015 | 0.125 ± 0.004 | 0.157 ± 0.008 |
+| External test (set B) | QSVM, product map (control) | 0.127 ± 0.023 | 0.141 ± 0.016 | 0.126 ± 0.025 | 0.165 ± 0.006 |
+
+Values are mean ± standard deviation over the draw seeds.
+<!-- END sens_learning -->
+
+![Learning curves with wider grids](results/sensitivity/learning_curves.png)
+
+What the wider range changes:
+
+* The entangling QSVM selected a bandwidth of 0.08 in all three draws at N = 2000, below the smallest value of the primary grid, so the grid edge of the primary run was binding.
+* At N = 2000 the entangling QSVM is level with the best matched classical model on both test sets: the intervals of the paired difference include zero, so neither an improvement nor a deficit can be claimed. The deficit on the external test in the primary analysis did not persist, so it was in part a consequence of the grid edge.
+* In sensitivity at 5% FPR the product map control is no longer distinguishable from the entangling map on either test set, so the data still do not support a claim that entanglement matters. The advantage of the product map on the external test in the primary analysis did not persist in this metric, although its AUROC on the external test is still slightly higher than that of the entangling map (the interval of the difference excludes zero).
+* At N = 250 the entangling QSVM remains clearly the lowest model on both test sets. From N = 500 it is within about 0.015 of the best matched model on both test sets (descriptive only, no intervals).
+* Caveats: the wider grid gives the kernel models more configurations to choose from, and selection among more configurations on a small cross validation sample can overfit that sample; the fixed test sets are what would show this. Nothing here is a confirmatory claim, so no correction for multiple comparisons was applied.
+
+#### Kernel diagnostics
+
+To see what a wider bandwidth range does to the kernel, the training Gram matrix at N = 2000 (draw seed 0) was summarised for both maps over the wider bandwidth grid: the mean and variance of the off diagonal entries and the kernel target alignment with the labels (coded as plus and minus one), uncentered and centered. These use training data only.
+
+<!-- BEGIN diag -->
+| Map | Repetitions | Bandwidth | Mean off diagonal entry | Variance of off diagonal entries | Kernel target alignment | Centered kernel target alignment |
+|---|---|---|---|---|---|---|
+| QSVM, product map (control) | 1 | 0.02 | 0.9993 | 2.61e-07 | 0.0000 | 0.0416 |
+| QSVM, product map (control) | 1 | 0.04 | 0.9973 | 4.15e-06 | 0.0000 | 0.0416 |
+| QSVM, product map (control) | 1 | 0.08 | 0.9892 | 6.46e-05 | 0.0002 | 0.0418 |
+| QSVM, product map (control) | 1 | 0.16 | 0.9579 | 9.35e-04 | 0.0008 | 0.0422 |
+| QSVM, product map (control) | 1 | 0.25 | 0.9014 | 4.62e-03 | 0.0019 | 0.0430 |
+| QSVM, product map (control) | 1 | 0.5 | 0.6750 | 3.18e-02 | 0.0070 | 0.0450 |
+| QSVM, product map (control) | 1 | 1 | 0.2690 | 4.83e-02 | 0.0183 | 0.0409 |
+| QSVM, product map (control) | 2 | 0.02 | 0.9993 | 2.62e-07 | 0.0000 | 0.0416 |
+| QSVM, product map (control) | 2 | 0.04 | 0.9973 | 4.24e-06 | 0.0000 | 0.0417 |
+| QSVM, product map (control) | 2 | 0.08 | 0.9887 | 7.05e-05 | 0.0002 | 0.0419 |
+| QSVM, product map (control) | 2 | 0.16 | 0.9505 | 1.25e-03 | 0.0009 | 0.0428 |
+| QSVM, product map (control) | 2 | 0.25 | 0.8676 | 7.63e-03 | 0.0025 | 0.0440 |
+| QSVM, product map (control) | 2 | 0.5 | 0.5296 | 4.63e-02 | 0.0109 | 0.0452 |
+| QSVM, product map (control) | 2 | 1 | 0.2523 | 3.44e-02 | 0.0138 | 0.0307 |
+| QSVM, ZZ entangling map | 1 | 0.02 | 0.9859 | 1.46e-04 | 0.0003 | 0.0442 |
+| QSVM, ZZ entangling map | 1 | 0.04 | 0.9465 | 1.94e-03 | 0.0013 | 0.0448 |
+| QSVM, ZZ entangling map | 1 | 0.08 | 0.8161 | 1.74e-02 | 0.0047 | 0.0462 |
+| QSVM, ZZ entangling map | 1 | 0.16 | 0.5155 | 5.94e-02 | 0.0136 | 0.0462 |
+| QSVM, ZZ entangling map | 1 | 0.25 | 0.2845 | 5.89e-02 | 0.0201 | 0.0410 |
+| QSVM, ZZ entangling map | 1 | 0.5 | 0.0722 | 1.82e-02 | 0.0202 | 0.0260 |
+| QSVM, ZZ entangling map | 1 | 1 | 0.0225 | 3.88e-03 | 0.0176 | 0.0196 |
+| QSVM, ZZ entangling map | 2 | 0.02 | 0.9820 | 2.44e-04 | 0.0004 | 0.0418 |
+| QSVM, ZZ entangling map | 2 | 0.04 | 0.9433 | 2.06e-03 | 0.0013 | 0.0440 |
+| QSVM, ZZ entangling map | 2 | 0.08 | 0.7586 | 2.64e-02 | 0.0053 | 0.0408 |
+| QSVM, ZZ entangling map | 2 | 0.16 | 0.3415 | 6.10e-02 | 0.0189 | 0.0426 |
+| QSVM, ZZ entangling map | 2 | 0.25 | 0.1778 | 4.00e-02 | 0.0205 | 0.0340 |
+| QSVM, ZZ entangling map | 2 | 0.5 | 0.0516 | 9.55e-03 | 0.0137 | 0.0172 |
+| QSVM, ZZ entangling map | 2 | 1 | 0.0255 | 3.38e-03 | 0.0147 | 0.0178 |
+<!-- END diag -->
+
+![Kernel diagnostics](results/sensitivity/kernel_diagnostics.png)
+
+The table is consistent with two opposite regimes. At the smallest bandwidths the angles are small, every row maps to almost the same state, and off diagonal entries sit close to 1 with almost no variance, so the Gram matrix is nearly constant and cannot separate points. As the bandwidth grows, entries fall towards the value 2^-8 = 0.0039 that two random 8 qubit states have on average. This is the direction described by kernel concentration (Huang et al., 2021; Thanasilp et al., 2024), where a kernel that is too concentrated approaches the identity matrix and carries little information about unseen points. At a bandwidth of 1.0 the mean entry of the entangling map is far below that of the product map, which is consistent with the pairwise phases spreading states faster than single qubit phases. The bandwidths selected by cross validation lie between the two extremes, which is consistent with the entangling map not performing best at 0.25, the edge of the primary grid. These diagnostics describe the kernel only. They do not show that concentration caused the primary result, and at 8 qubits the kernel is far from the exponential regime that those papers analyse.
+
+### 7.8.1 Widening the classical grids as well (post hoc)
+
+In the primary run, boosted trees and logistic regression also selected values at the edges of their grids in some draws (for boosted trees the smallest learning rate and the smallest depth, for logistic regression the largest C at one size). To check that widening only the kernel model grids does not tilt the comparison, a second post hoc run widens the grid of every model. The QSVM and RBF grids are those of section 7.8, the two classical grids are widened as below, and everything else is unchanged. Command: `python scripts/run_pipeline.py --grids extended_all --out results/sensitivity_all --skip-shots`. Files are in `results/sensitivity_all/`.
+
+<!-- BEGIN sens_all_grids -->
+| Model | Primary grid | Widened grid (section 7.8.1) |
+|---|---|---|
+| Logistic regression | C in [0.001, 0.01, 0.1, 1.0, 10.0, 100.0] | C in [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0] |
+| Gradient boosted trees | learning_rate in [0.03, 0.1, 0.3]; max_depth in [2, 3, 4]; max_iter in [100, 300] | learning_rate in [0.01, 0.03, 0.1, 0.3]; max_depth in [1, 2, 3, 4]; max_iter in [100, 300, 600] |
+<!-- END sens_all_grids -->
+
+Selected configurations of the two classical models at N = 2000:
+
+<!-- BEGIN sens_all_params -->
+| Model | Selected configuration per draw (every grid widened) |
+|---|---|
+| Logistic regression | seed 0: {"C": 1.0}; seed 1: {"C": 10.0}; seed 2: {"C": 0.1} |
+| Gradient boosted trees | seed 0: {"learning_rate": 0.01, "max_depth": 3, "max_iter": 300}; seed 1: {"learning_rate": 0.01, "max_depth": 2, "max_iter": 600}; seed 2: {"learning_rate": 0.03, "max_depth": 2, "max_iter": 100} |
+<!-- END sens_all_params -->
+
+Sensitivity at 5% FPR at N = 2000 under the three sets of grids (mean over 3 draws, 95% patient level bootstrap intervals):
+
+<!-- BEGIN sens_all_headline -->
+| Test set | Model (N = 2000) | Primary grids | Wider kernel grids (section 7.8) | Every grid widened |
+|---|---|---|---|---|
+| Internal test (set A) | Logistic regression | 0.131 [0.104, 0.162] | 0.131 [0.104, 0.162] | 0.131 [0.104, 0.162] |
+| Internal test (set A) | RBF SVM | 0.142 [0.118, 0.172] | 0.142 [0.118, 0.172] | 0.142 [0.118, 0.172] |
+| Internal test (set A) | Gradient boosted trees | 0.142 [0.117, 0.171] | 0.142 [0.117, 0.171] | 0.143 [0.118, 0.173] |
+| Internal test (set A) | QSVM, ZZ entangling map | 0.125 [0.104, 0.149] | 0.148 [0.122, 0.175] | 0.148 [0.122, 0.175] |
+| Internal test (set A) | QSVM, product map (control) | 0.135 [0.113, 0.162] | 0.135 [0.114, 0.162] | 0.135 [0.114, 0.162] |
+| External test (set B) | Logistic regression | 0.148 [0.116, 0.179] | 0.148 [0.116, 0.179] | 0.148 [0.116, 0.179] |
+| External test (set B) | RBF SVM | 0.155 [0.128, 0.185] | 0.155 [0.128, 0.185] | 0.155 [0.128, 0.185] |
+| External test (set B) | Gradient boosted trees | 0.154 [0.126, 0.180] | 0.154 [0.126, 0.180] | 0.150 [0.122, 0.176] |
+| External test (set B) | QSVM, ZZ entangling map | 0.132 [0.106, 0.160] | 0.157 [0.130, 0.185] | 0.157 [0.130, 0.185] |
+| External test (set B) | QSVM, product map (control) | 0.165 [0.136, 0.192] | 0.165 [0.136, 0.192] | 0.165 [0.136, 0.192] |
+<!-- END sens_all_headline -->
+
+Paired difference in sensitivity at 5% FPR, entangling QSVM minus the best matched classical model chosen on validation data (its name in brackets):
+
+<!-- BEGIN sens_all_paired -->
+| Test set | Primary grids | Wider kernel grids (section 7.8) | Every grid widened |
+|---|---|---|---|
+| Internal test (set A) | -0.018 [-0.035, 0.002] (Gradient boosted trees) | 0.005 [-0.012, 0.022] (Gradient boosted trees) | 0.004 [-0.013, 0.021] (Gradient boosted trees) |
+| External test (set B) | -0.022 [-0.040, -0.004] (Gradient boosted trees) | 0.003 [-0.013, 0.023] (Gradient boosted trees) | 0.007 [-0.009, 0.026] (Gradient boosted trees) |
+<!-- END sens_all_paired -->
+
+* Widening the classical grids moves the boosted tree sensitivity at N = 2000 by less than 0.005 on both test sets, and the paired differences between the entangling QSVM and the best matched classical model are again close to zero with intervals that include zero. The conclusion of section 7.8 holds when every grid is widened.
+* Boosted trees again chose the smallest learning rate of their widened grid (0.01) in two of three draws at N = 2000, so their grid edge is still binding. Conclusions here are limited to the grids that were tried.
+* Taken together, sections 7.8 and 7.8.1 show that the primary result of a lower QSVM depended on the range of the tuning grid, so the robust statement is that no difference between the entangling QSVM and the best classical model can be detected at these sample sizes, not that the QSVM is worse. They do not show an advantage either.
+
 ## 8. Trade offs, advantages and limitations
 
 ### 8.1 What the results say
@@ -368,7 +594,7 @@ In this study these properties did not translate into better detection. The hone
 ### 8.4 Limitations
 
 * Eight qubits are easy to simulate classically, so this study cannot show and does not claim any computational advantage.
-* The entangling QSVM selected the smallest bandwidth in its grid in every draw at N = 2000 (section 7.4), so its best configuration may lie below the grid. The grid was fixed before the run and was not widened after seeing results; a wider bandwidth range is a natural next experiment, with the same widening applied to the RBF gamma grid.
+* The entangling QSVM selected the smallest bandwidth in its grid in every draw at N = 2000 (section 7.4), so its best configuration may lie below the grid. The primary grid was fixed before the run and was not changed after seeing results. The wider range was tested afterwards as a clearly labelled post hoc sensitivity analysis, with the same widening applied to the RBF gamma grid (section 7.8).
 * Small differences between models are within the spread over draws (section 7.2). The tuned configurations also vary between draws, which reflects how flat the cross validation surface is on this task.
 * All quantum results are from exact statevector simulation, plus one binomial shot sampling study at N = 500. No hardware noise model was used and nothing was run on quantum hardware. Gate noise and readout error would add further error to every kernel entry.
 * The eight features are deliberately simple and prespecified. Laboratory values, demographics and missingness indicators were not used, so absolute performance is modest for every model, quantum or classical. The wider feature set with missingness indicators for the reference models was cut for time.
@@ -395,6 +621,8 @@ Reproducibility check performed: a fresh clone with a new virtual environment bu
 
 The first full run reads about 40,000 small files and caches them in `data/cache/`; on this machine that reading step was disk bound and took a large share of the wall clock time below. Later runs reuse the cache, and the model fitting, bootstrap and reports took less than half an hour. The full run is resumable: finished (N, draw, model) combinations recorded in `results/tuning.csv` are skipped.
 
+The post hoc sensitivity analyses of sections 7.8 and 7.8.1 reuse the same script with other grids and their own output folders, and take about 10 to 15 minutes each on a 2 core machine once the data are cached: `python scripts/run_pipeline.py --grids extended --out results/sensitivity --skip-shots` and `python scripts/run_pipeline.py --grids extended_all --out results/sensitivity_all --skip-shots`. `python scripts/render_readme_tables.py` regenerates every generated table and figure from the results files.
+
 <!-- BEGIN runtime -->
 Full run wall clock time: 40.1 minutes on the machine described above (sizes [250, 500, 1000, 2000], draw seeds [0, 1, 2], 500 bootstrap resamples).
 <!-- END runtime -->
@@ -408,7 +636,7 @@ Full run wall clock time: 40.1 minutes on the machine described above (sizes [25
 | Step 3: quantum contribution, why it is appropriate, which limitation it addresses | Section 5 |
 | Step 4: fair evaluation with consistent data and conditions, results, improvements and limitations | Sections 6, 7 and 8 |
 | Functional codebase | `src/sepsis6q/`, `scripts/`, `tests/` |
-| Comparative evaluation with classical metrics and quantum resource and efficiency metrics | Sections 7.1 to 7.7 |
+| Comparative evaluation with classical metrics and quantum resource and efficiency metrics | Sections 7.1 to 7.8 |
 | Explanation of approach, advantages, limitations and trade offs | Sections 5 and 8 |
 | Classical baselines comparable to the quantum approach | Sections 3.4 and 4 (same features, rows, preprocessing and tuning protocol) |
 
@@ -417,10 +645,12 @@ Full run wall clock time: 40.1 minutes on the machine described above (sizes [25
 1. Reyna MA, Josef CS, Jeter R, et al. Early Prediction of Sepsis From Clinical Data: The PhysioNet/Computing in Cardiology Challenge 2019. Critical Care Medicine 48(2), 2020. https://doi.org/10.1097/CCM.0000000000004145
 2. PhysioNet/Computing in Cardiology Challenge 2019 dataset, version 1.0.0. https://doi.org/10.13026/v64v-d857 , https://physionet.org/content/challenge-2019/1.0.0/
 3. Goldberger AL, Amaral LAN, Glass L, et al. PhysioBank, PhysioToolkit, and PhysioNet: Components of a New Research Resource for Complex Physiologic Signals. Circulation 101(23), 2000.
-4. Lashen H, et al. JMIR AI 2023;2:e45257 (in hospital deterioration prediction, Cleveland Clinic Abu Dhabi with NYU Abu Dhabi).
+4. Lashen H, et al. JMIR AI 2023;2:e45257, https://doi.org/10.2196/45257 (in hospital deterioration prediction, Cleveland Clinic Abu Dhabi with NYU Abu Dhabi).
 5. Havlicek V, Corcoles AD, Temme K, et al. Supervised learning with quantum enhanced feature spaces. Nature 567, 209 to 212, 2019.
 6. Pedregosa F, et al. Scikit-learn: Machine Learning in Python. Journal of Machine Learning Research 12, 2011.
 7. Qiskit contributors. Qiskit: an open source framework for quantum computing. https://github.com/Qiskit/qiskit
+8. Huang HY, Broughton M, Mohseni M, Babbush R, Boixo S, Neven H, McClean JR. Power of data in quantum machine learning. Nature Communications 12, 2631, 2021. https://doi.org/10.1038/s41467-021-22539-9
+9. Thanasilp S, Wang S, Cerezo M, Holmes Z. Exponential concentration in quantum kernel methods. Nature Communications 15, 5200, 2024. https://doi.org/10.1038/s41467-024-49287-w
 
 ## 12. Team
 
