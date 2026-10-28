@@ -430,3 +430,7 @@ Team Kanban.
 * Awaiz Ahmed, Software Engineering, Al Ain University, Abu Dhabi campus
 * Bilal Feroz, Software Engineering, Al Ain University, Abu Dhabi campus
 * Kareena Mueenuddin, Mechatronics Engineering, Amity University
+
+## 13. Licence
+
+The code in this repository is released under the Apache License, version 2.0 (see `LICENSE`). The PhysioNet/Computing in Cardiology Challenge 2019 data are not redistributed here; they are downloaded by `scripts/download_data.py` and remain under the terms of their own PhysioNet licence.
