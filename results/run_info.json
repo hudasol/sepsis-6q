@@ -1,0 +1,12 @@
+{
+  "total_seconds": 366.20354610006325,
+  "smoke": false,
+  "sizes": [
+    1000
+  ],
+  "seeds": [
+    0
+  ],
+  "bootstrap_resamples": 500,
+  "patient_file_limit": null
+}
