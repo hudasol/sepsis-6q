@@ -1,0 +1,18 @@
+{
+  "model": "ceiling_hgb_all_columns",
+  "features": 74,
+  "training_rows": 471468,
+  "dropped_columns": [
+    "EtCO2",
+    "m_EtCO2"
+  ],
+  "feature_groups": {
+    "clinical columns": 34,
+    "trend features": 2,
+    "demographic and unit columns": 5,
+    "ICULOS": 1,
+    "missingness indicators": 34
+  },
+  "bootstrap_resamples": 500,
+  "fit_seconds": 21.17614660800018
+}
