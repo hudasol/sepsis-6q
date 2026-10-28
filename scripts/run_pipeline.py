@@ -247,7 +247,7 @@ def main():
             reference_models(sets, out, score_dir)
         if args.grids == "extended" and not (out / "kernel_diagnostics.csv").exists():
             from sepsis6q import diagnostics
-            diagnostics.kernel_diagnostics(sets, out)
+            diagnostics.kernel_diagnostics(sets, out, n=headline, seed=seeds[0])
             log("kernel diagnostics: done")
         metrics = matched_runs(sets, sizes, seeds, out, score_dir, GRID_SETS[args.grids])
     if headline in set(metrics["N"]):
