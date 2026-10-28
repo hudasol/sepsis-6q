@@ -1,0 +1,9 @@
+map,reps,circuit,qubits,depth,two_qubit_gates,total_gates
+ZZ linear,1,feature map,8,25,14,53
+ZZ linear,1,kernel circuit,8,49,26,104
+ZZ linear,2,feature map,8,35,28,106
+ZZ linear,2,kernel circuit,8,69,54,210
+product,1,feature map,8,4,0,32
+product,1,kernel circuit,8,9,0,64
+product,2,feature map,8,8,0,64
+product,2,kernel circuit,8,17,0,128

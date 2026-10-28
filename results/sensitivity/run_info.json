@@ -1,0 +1,18 @@
+{
+  "total_seconds": 644.4812651560001,
+  "smoke": false,
+  "sizes": [
+    2000,
+    250,
+    500,
+    1000
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "bootstrap_resamples": 500,
+  "patient_file_limit": null,
+  "grids": "extended"
+}

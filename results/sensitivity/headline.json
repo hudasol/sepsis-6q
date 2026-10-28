@@ -1,0 +1,6 @@
+{
+  "headline_N": 2000,
+  "best_matched_classical": "hgb",
+  "resamples": 500,
+  "selection": "highest mean validation sens_at_5fpr over draws"
+}
