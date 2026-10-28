@@ -234,7 +234,26 @@ def block_runtime(d):
             f"(sizes {i['sizes']}, draw seeds {i['seeds']}, {i['bootstrap_resamples']} bootstrap resamples).")
 
 
-BLOCKS = {"summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
+def block_runs(d):
+    m = d["metrics"]
+    top = m["N"].max()
+    if d["ref"] is not None:
+        m = pd.concat([m, d["ref"]])
+    rows = [[NAMES[x.model], x.N, x.seed, x.set, f3(x.sens_at_5fpr), f3(x.auroc), f3(x.auprc), f3(x.prevalence)]
+            for x in m.itertuples() if x.set != "val" and (x.N == top or x.model.startswith("ref"))]
+    return table(["Model", "N", "Draw seed", "Set", "Sensitivity at 5% FPR", "AUROC", "AUPRC", "Prevalence"], rows)
+
+
+def block_status(d):
+    c, i = d["counts"], d["info"]
+    files = f"{c['raw_A']['files']:,} set A files and {c['raw_B']['files']:,} set B files"
+    if i["sizes"] == [250, 500, 1000, 2000] and len(i["seeds"]) == 3 and d["boot"] is not None:
+        return f"Status: final results from the full run on {files}."
+    return (f"Status: PRELIMINARY. The numbers below come from training sizes {i['sizes']} and draw seeds "
+            f"{i['seeds']} on {files}, before the full run. They will be replaced by the full run.")
+
+
+BLOCKS = {"status": block_status, "runs": block_runs, "summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
           "paired": block_paired, "deployment": block_deployment, "learning": block_learning,
           "params": block_params, "resources": block_resources, "efficiency": block_efficiency,
           "shots": block_shots, "runtime": block_runtime}
