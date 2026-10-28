@@ -196,13 +196,13 @@ def bootstrap(sets, metrics, headline_n, seeds, n_resamples, out, score_dir):
             for k in keys:
                 arr = np.array(draws[m][k])
                 rows.append({"set": set_name, "comparison": m, "metric": k, "estimate": point[m][k],
-                             "ci_low": float(np.percentile(arr, 2.5)), "ci_high": float(np.percentile(arr, 97.5))})
+                             "ci_low": float(np.nanpercentile(arr, 2.5)), "ci_high": float(np.nanpercentile(arr, 97.5))})
         for a, b in (("qsvm_zz", best_classical), ("qsvm_zz", "qsvm_product")):
             for k in keys:
                 diff = np.array(draws[a][k]) - np.array(draws[b][k])
                 rows.append({"set": set_name, "comparison": f"{a} minus {b}", "metric": k,
                              "estimate": point[a][k] - point[b][k],
-                             "ci_low": float(np.percentile(diff, 2.5)), "ci_high": float(np.percentile(diff, 97.5))})
+                             "ci_low": float(np.nanpercentile(diff, 2.5)), "ci_high": float(np.nanpercentile(diff, 97.5))})
         log(f"bootstrap {set_name}: done")
     pd.DataFrame(rows).to_csv(out / "bootstrap.csv", index=False)
     save_json({"headline_N": headline_n, "best_matched_classical": best_classical, "resamples": n_resamples,
@@ -214,6 +214,8 @@ def main():
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--limit", type=int, default=None, help="patient files per set")
     ap.add_argument("--sizes", type=int, nargs="+", default=None)
+    ap.add_argument("--seeds", type=int, nargs="+", default=None)
+    ap.add_argument("--out", default=None, help="results directory")
     ap.add_argument("--skip-shots", action="store_true")
     ap.add_argument("--report-only", action="store_true", help="reuse saved scores, redo bootstrap and reports")
     args = ap.parse_args()
@@ -224,9 +226,10 @@ def main():
     else:
         sizes, seeds, n_boot, headline = C.TRAIN_SIZES, C.DRAW_SEEDS, C.BOOTSTRAP_RESAMPLES, C.HEADLINE_N
         out = C.RESULTS_DIR
-    sizes = args.sizes or sizes
+    sizes, seeds = args.sizes or sizes, args.seeds or seeds
+    out = Path(args.out).resolve() if args.out else out
     out.mkdir(parents=True, exist_ok=True)
-    score_dir = C.CACHE_DIR / ("scores_smoke" if args.smoke else "scores")
+    score_dir = C.CACHE_DIR / ("scores_" + out.name)
     score_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
 
