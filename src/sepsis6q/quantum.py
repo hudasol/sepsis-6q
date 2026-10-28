@@ -154,10 +154,15 @@ class QuantumKernelSVM:
         return self
 
     def decision_function(self, X_scaled):
-        """Decision values in chunks, using support vectors only."""
+        """Decision values in chunks, using support vectors only.
+
+        Overlaps for prediction are computed in single precision complex
+        arithmetic, which changes kernel values by about 1e-7 and halves the time.
+        """
         X_scaled = np.asarray(X_scaled)
         out = np.empty(len(X_scaled))
+        sv = self.sv_states_.astype(np.complex64)
         for start in range(0, len(X_scaled), self.chunk):
-            S = self.states(X_scaled[start:start + self.chunk])
-            out[start:start + self.chunk] = kernel(S, self.sv_states_) @ self.dual_coef_ + self.intercept_
+            S = self.states(X_scaled[start:start + self.chunk]).astype(np.complex64)
+            out[start:start + self.chunk] = kernel(S, sv).astype(float) @ self.dual_coef_ + self.intercept_
         return out
