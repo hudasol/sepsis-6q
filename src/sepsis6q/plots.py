@@ -43,7 +43,7 @@ def learning_curves(out):
                 continue
             mean, lo, hi = g.mean(), g.min(), g.max()
             ax.plot(mean.index, mean.values, color=st["color"], ls=st["ls"], marker=st["marker"], label=st["label"])
-            ax.fill_between(mean.index, lo.values, hi.values, color=st["color"], alpha=0.12)
+            ax.fill_between(mean.index, lo.values, hi.values, color=st["color"], alpha=0.07)
         if ref is not None:
             for name, (color, ls, label) in REF_STYLE.items():
                 r = ref[(ref["model"] == name) & (ref["set"] == set_name)]
@@ -83,7 +83,7 @@ def headline_intervals(out):
         ax.set_yticklabels([labels[k] for k in order], fontsize=8)
         ax.invert_yaxis()
         ax.set_title(SET_TITLE[set_name], color=ROSE)
-        ax.set_xlabel("Sensitivity at 5% false positive rate (95% bootstrap interval)")
+        ax.set_xlabel("Sensitivity at 5% FPR, 95% bootstrap interval")
     fig.tight_layout()
     fig.savefig(out / "headline_intervals.png", dpi=150)
     plt.close(fig)
