@@ -387,7 +387,7 @@ python scripts/download_data.py  # about 40,000 small files, 20 to 30 minutes
 bash scripts/run_all.sh          # tests, smoke run, full run, README tables
 ```
 
-Reproducibility check performed: a fresh clone with a new virtual environment built from `requirements.txt` ran `run_all.sh --smoke` successfully (all tests passed, smoke pipeline, smoke README rendering and text check). Its smoke metrics matched a second smoke run in the working copy to within about 1e-4. The remaining differences come from multithreaded floating point summation, mainly in the single precision kernel evaluation used for QSVM prediction.
+Reproducibility check performed: a fresh clone with a new virtual environment built from `requirements.txt` ran `run_all.sh --smoke` successfully (all tests passed, smoke pipeline, smoke README rendering and text check). Its smoke metrics and bootstrap intervals were identical to those of a second smoke run in the working copy on the same files.
 
 `bash scripts/run_all.sh --smoke` runs the tests and the smoke pipeline only (about 300 patients per set, a few minutes) and writes to `results/smoke/`, which is not committed. The full run writes incremental files to `results/` and can be resumed.
 
