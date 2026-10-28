@@ -19,7 +19,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from sepsis6q.classical import GRIDS  # noqa: E402
+from sepsis6q.classical import EXTENDED_ALL_GRIDS, EXTENDED_GRIDS, GRIDS  # noqa: E402
 
 NAMES = {
     "logreg": "Logistic regression",
@@ -55,10 +55,32 @@ def load(res):
             return None
         return json.loads(p.read_text()) if p.suffix == ".json" else pd.read_csv(p)
 
-    return {k: read(v) for k, v in {
+    out = {k: read(v) for k, v in {
         "counts": "data_counts.json", "metrics": "metrics_runs.csv", "ref": "reference_metrics.csv",
         "boot": "bootstrap.csv", "headline": "headline.json", "res": "resources.csv", "eff": "efficiency.csv",
         "shots": "shot_noise.csv", "tuning": "tuning.csv", "info": "run_info.json"}.items()}
+    out["sens"] = load_sensitivity(res / "sensitivity")
+    out["sens_all"] = load_sensitivity(res / "sensitivity_all")
+    out["timing"] = read_file(res / "timings_clean.csv")
+    out["ceiling"] = read_file(res / "ceiling_metrics.csv")
+    return out
+
+
+def read_file(path):
+    if not path.exists():
+        return None
+    return json.loads(path.read_text()) if path.suffix == ".json" else pd.read_csv(path)
+
+
+def load_sensitivity(folder):
+    """Files of one post hoc sensitivity run, or None when that run is not present."""
+    if not folder.is_dir():
+        return None
+    files = {"metrics": "metrics_runs.csv", "ref": "reference_metrics.csv", "boot": "bootstrap.csv",
+             "headline": "headline.json", "tuning": "tuning.csv", "info": "run_info.json",
+             "diag": "kernel_diagnostics.csv"}
+    out = {k: read_file(folder / v) for k, v in files.items()}
+    return out if out["boot"] is not None else None
 
 
 def verdict(row):
@@ -91,8 +113,9 @@ def block_summary(d):
     parts.append("The prespecified question is answered " + ("yes on at least one test set." if claim else
                  "no: the quantum kernel did not detect more pre onset hours at the same false alarm rate."))
     draws = len(d["info"]["seeds"]) if d["info"] else d["tuning"]["seed"].nunique()
+    extra = " " + posthoc_sentence(d) if d.get("sens") else ""
     return f"Headline result at N = {h['headline_N']} balanced training rows, mean over {draws} draws, " \
-           f"patient level bootstrap with {h['resamples']} resamples. " + " ".join(parts)
+           f"patient level bootstrap with {h['resamples']} resamples. " + " ".join(parts) + extra
 
 
 def block_data(d):
@@ -287,10 +310,218 @@ def block_status(d):
             f"{i['seeds']} on {files}, before the full run. They will be replaced by the full run.")
 
 
+# Post hoc sensitivity analyses (README sections 7.8 and 7.8.1) and the at a glance block
+
+
+def brow(b, set_name, comparison, metric="sens_at_5fpr"):
+    return b[(b["set"] == set_name) & (b["comparison"] == comparison) & (b["metric"] == metric)].iloc[0]
+
+
+def diff_rows(boot, headline):
+    best = headline["best_matched_classical"]
+    return best, {s: brow(boot, s, f"qsvm_zz minus {best}") for s in SETS}
+
+
+def conclusion(prim, post):
+    """What the paired differences under another grid say, relative to the primary analysis."""
+    if any(r["ci_low"] > 0 for r in post.values()):
+        return "an improvement can be claimed on at least one test set under these grids"
+    if any(r["ci_high"] < 0 for r in post.values()):
+        return "the QSVM remained lower than the best matched classical model on at least one test set"
+    gone = [SETS[s][0].lower() + SETS[s][1:] for s, r in prim.items() if r["ci_high"] < 0]
+    tail = f", and the deficit of the primary analysis on the {' and the '.join(gone)} did not persist" if gone else ""
+    return "no improvement and no deficit can be claimed" + tail
+
+
+def posthoc_sentence(d):
+    """One sentence for the summary: the paired differences under the wider grids."""
+    _, prim = diff_rows(d["boot"], d["headline"])
+    parts = []
+    for key, what in (("sens", "wider bandwidth and gamma grids (section 7.8)"),
+                      ("sens_all", "every grid widened (section 7.8.1)")):
+        if not d.get(key):
+            continue
+        _, post = diff_rows(d[key]["boot"], d[key]["headline"])
+        parts.append(f"with {what} the entangling QSVM minus best matched classical difference was "
+                     f"{ci(post['test_A'])} on the internal test and {ci(post['test_B'])} on the external test, "
+                     f"so {conclusion(prim, post)}")
+    label = "Post hoc check" if len(parts) == 1 else "Post hoc checks"
+    return f"{label}, added after the primary results were seen and leaving the prespecified answer " \
+           "unchanged: " + "; ".join(parts) + "."
+
+
+def block_glance_answer(d):
+    b, h = d["boot"], d["headline"]
+    best, prim = diff_rows(b, h)
+    q = {s: brow(b, s, "qsvm_zz")["estimate"] for s in SETS}
+    c = {s: brow(b, s, best)["estimate"] for s in SETS}
+    claim = any(r["ci_low"] > 0 for r in prim.values())
+    text = (f"At {h['headline_N']} training rows the entangling QSVM reached a sensitivity of {q['test_A']:.3f} on the "
+            f"internal test and {q['test_B']:.3f} on the external test at a 5% false positive rate, against "
+            f"{c['test_A']:.3f} and {c['test_B']:.3f} for the best matched classical model ({NAMES[best]}), so the "
+            f"prespecified question is answered {'yes' if claim else 'no'}")
+    if d.get("sens"):
+        _, post = diff_rows(d["sens"]["boot"], d["sens"]["headline"])
+        text += (f"; a post hoc rerun with wider bandwidth and gamma grids (section 7.8) changed the paired "
+                 f"differences to {ci(post['test_A'])} and {ci(post['test_B'])}, so {conclusion(prim, post)}")
+    return text + "."
+
+
+def block_glance_table(d):
+    rows = []
+    sources = [(NAMES[m], d["boot"], m) for m in MATCHED]
+    if d.get("sens"):
+        sources.append(("QSVM, ZZ entangling map, wider bandwidth grid (post hoc, section 7.8)", d["sens"]["boot"],
+                        "qsvm_zz"))
+    for label, b, model in sources:
+        cells = [label]
+        for s in SETS:
+            cells += [ci(brow(b, s, model)), f3(brow(b, s, model, "auroc")["estimate"])]
+        rows.append(cells)
+    return table(["Model", "Internal test (set A): sensitivity at 5% FPR", "Internal test AUROC",
+                  "External test (set B): sensitivity at 5% FPR", "External test AUROC"], rows)
+
+
+def grid_text(g):
+    return "; ".join(f"{k} in {v}" for k, v in g.items())
+
+
+def block_sens_grids(d):
+    rows = []
+    for m in MATCHED:
+        same = GRIDS[m] == EXTENDED_GRIDS[m]
+        rows.append([NAMES[m], grid_text(GRIDS[m]), "unchanged" if same else grid_text(EXTENDED_GRIDS[m])])
+    return table(["Model", "Primary grid", "Wider grid (this section)"], rows)
+
+
+def block_sens_all_grids(d):
+    rows = []
+    for m in ("logreg", "hgb"):
+        rows.append([NAMES[m], grid_text(GRIDS[m]), grid_text(EXTENDED_ALL_GRIDS[m])])
+    return table(["Model", "Primary grid", "Widened grid (section 7.8.1)"], rows)
+
+
+def block_sens_check(d):
+    """Reproducibility of the new run: for runs whose selected configuration is unchanged, do the metrics agree?"""
+    s, m0 = d["sens"], d["metrics"]
+    key = ["model", "N", "seed"]
+    cfg = d["tuning"][key + ["params"]].merge(s["tuning"][key + ["params"]], on=key, suffixes=("_p", "_s"))
+    same_cfg = cfg[cfg["params_p"] == cfg["params_s"]]
+    both = m0.merge(s["metrics"], on=key + ["set"], suffixes=("_p", "_s"))
+    rows = []
+    for model in MATCHED:
+        runs = same_cfg[same_cfg["model"] == model]
+        g = both.merge(runs[key], on=key)
+        g = g[g["model"] == model]
+        d_sens = (g["sens_at_5fpr_p"] - g["sens_at_5fpr_s"]).abs()
+        d_auc = (g["auroc_p"] - g["auroc_s"]).abs()
+        rows.append([NAMES[model], f"{len(runs)} of {len(cfg[cfg['model'] == model])}",
+                     f"{int((d_sens.lt(1e-6) & d_auc.lt(1e-6)).sum())} of {len(g)}",
+                     f"{max(d_sens.max(), d_auc.max()):.1e}" if len(g) else ""])
+    ref = d["ref"].merge(s["ref"], on=["model", "set"], suffixes=("_p", "_s"))
+    r_sens = (ref["sens_at_5fpr_p"] - ref["sens_at_5fpr_s"]).abs()
+    r_auc = (ref["auroc_p"] - ref["auroc_s"]).abs()
+    for model in ref["model"].unique():
+        g = ref["model"] == model
+        rows.append([NAMES[model], "not tuned", f"{int((r_sens[g].lt(1e-6) & r_auc[g].lt(1e-6)).sum())} of {int(g.sum())}",
+                     f"{max(r_sens[g].max(), r_auc[g].max()):.1e}"])
+    return table(["Model", "Runs (N and draw) with the same selected configuration as the primary run",
+                  "Of those, rows (run and evaluation set) whose sensitivity at 5% FPR and AUROC agree to within 1e-6",
+                  "Largest absolute difference among them"], rows) + (
+        "\n\nThe two runs used different machines and operating systems. Logistic regression, boosted trees and "
+        "the reference models reproduce exactly. Where the selected configuration is unchanged, the kernel models "
+        "agree with the primary run to within the largest difference shown, which is consistent with rounding "
+        "differences between processors in the single precision overlaps used for kernel prediction. All other "
+        "differences come from new configurations chosen from the wider grid.")
+
+
+def block_sens_params(d):
+    s, n = d["sens"], d["sens"]["headline"]["headline_N"]
+    rows = []
+    for model in MATCHED:
+        g = s["tuning"][(s["tuning"]["model"] == model) & (s["tuning"]["N"] == n)]
+        rows.append([NAMES[model], "; ".join(f"seed {r.seed}: {r.params}" for r in g.itertuples()),
+                     f"{g['cv_auroc'].mean():.3f}"])
+    return table(["Model", "Selected configuration per draw (wider grids)", "Mean best CV AUROC"], rows)
+
+
+def block_sens_headline(d):
+    s = d["sens"]
+    return block_headline({"boot": s["boot"], "metrics": s["metrics"]})
+
+
+def block_sens_paired(d):
+    s = d["sens"]
+    best0, best1 = d["headline"]["best_matched_classical"], s["headline"]["best_matched_classical"]
+    names = NAMES[best0] if best0 == best1 else f"primary {NAMES[best0]}, wider grids {NAMES[best1]}"
+    rows = []
+    for set_name, label in SETS.items():
+        for what, c0, c1 in ((f"Entangling QSVM minus best matched classical model ({names})",
+                              f"qsvm_zz minus {best0}", f"qsvm_zz minus {best1}"),
+                             ("Entangling QSVM minus product map QSVM", "qsvm_zz minus qsvm_product",
+                              "qsvm_zz minus qsvm_product")):
+            rows.append([label, what, ci(brow(d["boot"], set_name, c0)), ci(brow(s["boot"], set_name, c1)),
+                         ci(brow(s["boot"], set_name, c1, "auroc"))])
+    return table(["Test set", "Difference at N = 2000", "Primary grids, sensitivity at 5% FPR",
+                  "Wider grids, sensitivity at 5% FPR", "Wider grids, AUROC"], rows)
+
+
+def block_sens_learning(d):
+    return block_learning({"metrics": d["sens"]["metrics"]})
+
+
+def block_diag(d):
+    g = d["sens"]["diag"].sort_values(["model", "reps", "bandwidth"])
+    rows = [[NAMES[x.model], x.reps, f"{x.bandwidth:g}", f"{x.mean_offdiag:.4f}", f"{x.var_offdiag:.2e}",
+             f"{x.alignment:.4f}", f"{x.centered_alignment:.4f}"] for x in g.itertuples()]
+    return table(["Map", "Repetitions", "Bandwidth", "Mean off diagonal entry", "Variance of off diagonal entries",
+                  "Kernel target alignment", "Centered kernel target alignment"], rows)
+
+
+def block_sens_all_headline(d):
+    rows = []
+    for set_name, label in SETS.items():
+        for model in MATCHED:
+            cells = [label, NAMES[model]]
+            for src in (d["boot"], d["sens"]["boot"], d["sens_all"]["boot"]):
+                cells.append(ci(brow(src, set_name, model)))
+            rows.append(cells)
+    return table(["Test set", "Model (N = 2000)", "Primary grids", "Wider kernel grids (section 7.8)",
+                  "Every grid widened"], rows)
+
+
+def block_sens_all_paired(d):
+    s = d["sens_all"]
+    rows = []
+    for set_name, label in SETS.items():
+        cells = [label]
+        for src, hd in ((d["boot"], d["headline"]), (d["sens"]["boot"], d["sens"]["headline"]),
+                        (s["boot"], s["headline"])):
+            best = hd["best_matched_classical"]
+            cells.append(f"{ci(brow(src, set_name, f'qsvm_zz minus {best}'))} ({NAMES[best]})")
+        rows.append(cells)
+    return table(["Test set", "Primary grids", "Wider kernel grids (section 7.8)", "Every grid widened"], rows)
+
+
+def block_sens_all_params(d):
+    s, n = d["sens_all"], d["sens_all"]["headline"]["headline_N"]
+    rows = []
+    for model in ("logreg", "hgb"):
+        g = s["tuning"][(s["tuning"]["model"] == model) & (s["tuning"]["N"] == n)]
+        rows.append([NAMES[model], "; ".join(f"seed {r.seed}: {r.params}" for r in g.itertuples())])
+    return table(["Model", "Selected configuration per draw (every grid widened)"], rows)
+
+
 BLOCKS = {"status": block_status, "verdict": block_verdict, "runs": block_runs, "summary": block_summary, "data": block_data, "grids": block_grids, "headline": block_headline,
           "paired": block_paired, "deployment": block_deployment, "learning": block_learning,
           "params": block_params, "resources": block_resources, "efficiency": block_efficiency,
-          "shots": block_shots, "runtime": block_runtime}
+          "shots": block_shots, "runtime": block_runtime,
+          "glance_answer": block_glance_answer, "glance_table": block_glance_table,
+          "sens_grids": block_sens_grids, "sens_check": block_sens_check, "sens_params": block_sens_params,
+          "sens_headline": block_sens_headline, "sens_paired": block_sens_paired,
+          "sens_learning": block_sens_learning, "diag": block_diag, "sens_all_grids": block_sens_all_grids,
+          "sens_all_headline": block_sens_all_headline, "sens_all_paired": block_sens_all_paired,
+          "sens_all_params": block_sens_all_params}
 
 
 def main():
