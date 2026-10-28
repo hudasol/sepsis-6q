@@ -66,7 +66,7 @@ def verdict(row):
         return "higher, and the 95% interval excludes zero"
     if row["ci_high"] < 0:
         return "lower, and the 95% interval excludes zero"
-    return "not different at this sample size (the 95% interval includes zero)"
+    return "not distinguishable from it at this sample size (the 95% interval includes zero)"
 
 
 def block_summary(d):
@@ -82,10 +82,14 @@ def block_summary(d):
             f"On the {label[0].lower() + label[1:]}, the entangling QSVM reached a sensitivity of {ci(q)} at a 5% false positive "
             f"rate, against {ci(c)} for the best matched classical model ({NAMES[best]}, chosen on validation "
             f"data). The paired difference was {ci(diff)}, so the QSVM was {verdict(diff)}.")
-    ctrl = b[(b["set"] == "test_A") & (b["comparison"] == "qsvm_zz minus qsvm_product")
-             & (b["metric"] == "sens_at_5fpr")].iloc[0]
-    parts.append(f"Against its own product map control on the internal test set, the entangling map was "
-                 f"{verdict(ctrl)} (difference {ci(ctrl)}).")
+    for s, label in SETS.items():
+        ctrl = b[(b["set"] == s) & (b["comparison"] == "qsvm_zz minus qsvm_product")
+                 & (b["metric"] == "sens_at_5fpr")].iloc[0]
+        parts.append(f"Against its own product map control on the {label[0].lower() + label[1:]}, the entangling "
+                     f"map was {verdict(ctrl)} (difference {ci(ctrl)}).")
+    claim = any(b[(b["comparison"] == f"qsvm_zz minus {best}") & (b["metric"] == "sens_at_5fpr")]["ci_low"] > 0)
+    parts.append("The prespecified question is answered " + ("yes on at least one test set." if claim else
+                 "no: the quantum kernel did not detect more pre onset hours at the same false alarm rate."))
     draws = len(d["info"]["seeds"]) if d["info"] else d["tuning"]["seed"].nunique()
     return f"Headline result at N = {h['headline_N']} balanced training rows, mean over {draws} draws, " \
            f"patient level bootstrap with {h['resamples']} resamples. " + " ".join(parts)
@@ -210,7 +214,7 @@ def block_efficiency(d):
         pair = "" if pd.isna(getattr(x, "circuits_sampled_pairwise", np.nan)) else \
             f"{int(x.circuits_sampled_pairwise):,}"
         rows.append([NAMES[x.model], x.N, f"{x.tune_seconds:.1f}", f"{x.train_seconds:.2f}",
-                     f"{x.predict_ms_per_1000_rows:.1f}", f"{x.support_vectors:.0f}" if x.support_vectors >= 0 else "",
+                     f"{x.predict_ms_per_1000_rows:.2f}", f"{x.support_vectors:.0f}" if x.support_vectors >= 0 else "",
                      exact, pair])
     return table(["Model", "N", "Tuning time (s)", "Final fit time (s)", "Prediction time per 1000 rows (ms)",
                   "Support vectors", "Circuits, exact states (N plus evaluation rows)",
@@ -222,7 +226,7 @@ def block_shots(d):
     s = d["shots"]
     if s is None:
         return "The shot noise study was not run."
-    rows = [[x.shots, f3(x.sens_at_5fpr), f3(x.auroc), f3(x.auprc), f"{x.min_eigenvalue_before_projection:.4f}",
+    rows = [[x.shots, f3(x.sens_at_5fpr), f3(x.auroc), f3(x.auprc), f"{x.min_eigenvalue_before_projection:.2e}",
              x.negative_eigenvalues_clipped] for x in s.itertuples()]
     return table(["Shots per entry", "Sensitivity at 5% FPR (set A test)", "AUROC", "AUPRC",
                   "Smallest Gram eigenvalue before projection", "Negative eigenvalues clipped"], rows)
