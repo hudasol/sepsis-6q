@@ -35,6 +35,10 @@ Sensitivity is the fraction of positive, pre onset rows that raise an alarm at a
 
 Figure: the prespecified grids and the primary run only. The post hoc runs with wider tuning grids are in sections 7.8 and 7.8.1.
 
+**The quantum model in one picture.** Each of the eight vital sign features is loaded onto one qubit, neighbouring qubits are coupled by the entangling phase blocks, and the kernel value for two patient hours is the probability of reading all zeros after one encoding followed by the inverse of the other. The circuit below is the one used throughout this repository (Qiskit `feature_map_circuit`, linear entanglement, one repetition shown; the tuned repetition count is 1 or 2).
+
+![Eight qubit entangling feature map drawn with Qiskit](results/feature_map_circuit.png)
+
 ## Detailed summary
 
 <!-- BEGIN summary -->
@@ -125,7 +129,9 @@ Credit: the task and data come from the PhysioNet/CinC Challenge 2019 (Reyna et 
 
 ### 5.1 Feature map and kernel
 
-Each of the eight scaled features is encoded on one qubit as an angle x_i = b pi u_i, where u_i is in [0, 1] and b is a tuned bandwidth. One repetition of the entangling map is a Hadamard gate on every qubit, a phase gate P(2 x_i) on every qubit, and for each neighbouring pair (i, i+1) on a line the block CX, P(2 (pi minus x_i)(pi minus x_{i+1})), CX. This is the ZZFeatureMap construction of Havlicek et al. (2019) with linear entanglement, and the repetition count is tuned. The kernel is the state fidelity k(x, y) = |<psi(x)|psi(y)>|^2, which on hardware would be estimated by the compute uncompute circuit U(x) followed by the inverse of U(y), as the probability of measuring all zeros. The SVM is scikit-learn `SVC` with this precomputed kernel.
+Each of the eight scaled features is encoded on one qubit as an angle x_i = b pi u_i, where u_i is in [0, 1] and b is a tuned bandwidth. One repetition of the entangling map is a Hadamard gate on every qubit, a phase gate P(2 x_i) on every qubit, and for each neighbouring pair (i, i+1) on a line the block CX, P(2 (pi minus x_i)(pi minus x_{i+1})), CX. This is the ZZFeatureMap construction of Havlicek et al. (2019) with linear entanglement, and the repetition count is tuned. The kernel is the state fidelity k(x, y) = |<psi(x)|psi(y)>|^2, which on hardware would be estimated by the compute uncompute circuit U(x) followed by the inverse of U(y), as the probability of measuring all zeros. The SVM is scikit-learn `SVC` with this precomputed kernel. The circuit is drawn in the figure below (`scripts/draw_circuit.py`, which checks the gate order against the map used for the resource counts in section 7.5).
+
+![Eight qubit entangling feature map drawn with Qiskit](results/feature_map_circuit.png)
 
 Control: the same QSVM with a product (non entangling) map, which keeps the Hadamard and single qubit phase gates and drops the pairwise blocks. It has the same grid as the entangling QSVM. If the entangling map does not beat the product map, the data do not support a claim that entanglement matters.
 
@@ -692,6 +698,8 @@ Reproducibility check performed: a fresh clone with a new virtual environment bu
 The first full run reads about 40,000 small files and caches them in `data/cache/`; on this machine that reading step was disk bound and took a large share of the wall clock time below. Later runs reuse the cache, and the model fitting, bootstrap and reports took less than half an hour. The full run is resumable: finished (N, draw, model) combinations recorded in `results/tuning.csv` are skipped.
 
 The post hoc sensitivity analyses of sections 7.8 and 7.8.1 reuse the same script with other grids and their own output folders, and take about 10 to 15 minutes each on a 2 core machine once the data are cached: `python scripts/run_pipeline.py --grids extended --out results/sensitivity --skip-shots` and `python scripts/run_pipeline.py --grids extended_all --out results/sensitivity_all --skip-shots`. `python scripts/measure_timings.py` writes the clean timings of section 7.5 and `python scripts/ceiling_reference.py` the ceiling reference of section 7.9 (it reads every column of the raw files once, which takes a few minutes). `python scripts/render_readme_tables.py` regenerates every generated table and figure from the results files.
+
+`python scripts/draw_circuit.py` redraws the circuit figure `results/feature_map_circuit.png` from the Qiskit map (Qiskit's drawer needs `pylatexenc`, which is listed in `requirements.txt`).
 
 <!-- BEGIN runtime -->
 Full run wall clock time: 40.1 minutes on the machine described above (sizes [250, 500, 1000, 2000], draw seeds [0, 1, 2], 500 bootstrap resamples).
