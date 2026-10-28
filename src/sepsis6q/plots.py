@@ -112,9 +112,41 @@ def shot_noise(out):
     plt.close(fig)
 
 
+def kernel_diagnostics(out):
+    path = out / "kernel_diagnostics.csv"
+    if not path.exists():
+        return
+    d = pd.read_csv(path)
+    panels = [("mean_offdiag", "Mean off diagonal kernel entry", "linear"),
+              ("var_offdiag", "Variance of off diagonal entries", "log"),
+              ("alignment", "Kernel target alignment", "linear")]
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.8))
+    for ax, (col, title, scale) in zip(axes, panels):
+        for model, color, marker in (("qsvm_zz", ROSE, "o"), ("qsvm_product", "#E9A6BC", "v")):
+            for reps, ls in ((1, "-"), (2, "--")):
+                g = d[(d["model"] == model) & (d["reps"] == reps)].sort_values("bandwidth")
+                label = f"{STYLE[model]['label']}, reps {reps}"
+                ax.plot(g["bandwidth"], g[col], color=color, ls=ls, marker=marker, ms=5, label=label)
+        ax.set_xscale("log", base=2)
+        ax.set_yscale(scale)
+        ax.set_xticks(sorted(d["bandwidth"].unique()))
+        ax.get_xaxis().set_major_formatter(matplotlib.ticker.FormatStrFormatter("%g"))
+        ax.tick_params(axis="x", labelsize=7)
+        ax.set_title(title, color=ROSE, fontsize=10)
+        ax.set_xlabel("Bandwidth")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8)
+    fig.suptitle(f"Kernel diagnostics, training Gram matrix, N = {int(d['N'].iloc[0])}, draw seed "
+                 f"{int(d['seed'].iloc[0])}", color=INK)
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    fig.savefig(out / "kernel_diagnostics.png", dpi=150)
+    plt.close(fig)
+
+
 def make_all(out):
     _theme()
     learning_curves(out)
     if (out / "bootstrap.csv").exists():
         headline_intervals(out)
     shot_noise(out)
+    kernel_diagnostics(out)

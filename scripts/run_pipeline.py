@@ -17,7 +17,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from sepsis6q import config as C  # noqa: E402
-from sepsis6q.classical import CLASSICAL, MATCHED, fit_model, make_classical, scores_of, tune  # noqa: E402
+from sepsis6q.classical import (CLASSICAL, GRID_SETS, MATCHED, fit_model, make_classical,  # noqa: E402
+                                scores_of, tune)
 from sepsis6q.data import label_behaviour, load_set  # noqa: E402
 from sepsis6q.evaluate import (ScoreIndex, operating_point, patient_bootstrap_weights,  # noqa: E402
                                ranking_metrics, threshold_at_specificity)
@@ -125,8 +126,10 @@ def reference_models(sets, out, score_dir):
     pd.DataFrame(metrics).to_csv(out / "reference_metrics.csv", index=False)
 
 
-def matched_runs(sets, sizes, seeds, out, score_dir):
-    """Every matched model on the same balanced draws, tuned by patient grouped cross validation."""
+def matched_runs(sets, sizes, seeds, out, score_dir, grids=None):
+    """Every matched model on the same balanced draws, tuned by patient grouped cross validation.
+
+    `grids` selects the hyperparameter grids (primary by default, extended for the sensitivity analysis)."""
     train = sets["train"]
     X_raw, y_all, groups_all = feature_matrix(train), train["y"].to_numpy(), train["patient"].to_numpy()
     metrics_path, tuning_path = out / "metrics_runs.csv", out / "tuning.csv"
@@ -143,7 +146,7 @@ def matched_runs(sets, sizes, seeds, out, score_dir):
                 if (n, seed, name) in done:
                     continue
                 start = time.perf_counter()
-                params, table = tune(name, X, y, groups)
+                params, table = tune(name, X, y, groups, grids)
                 tune_time = time.perf_counter() - start
                 model, fit_time = fit_model(name, params, X, y)
                 scores, pred_time = predict_all(model, pre, sets)
@@ -218,6 +221,8 @@ def main():
     ap.add_argument("--out", default=None, help="results directory")
     ap.add_argument("--skip-shots", action="store_true")
     ap.add_argument("--report-only", action="store_true", help="reuse saved scores, redo bootstrap and reports")
+    ap.add_argument("--grids", choices=sorted(GRID_SETS), default="primary",
+                    help="hyperparameter grids; extended is used for the post hoc sensitivity analysis")
     args = ap.parse_args()
     if args.smoke:
         args.limit = args.limit or 300
@@ -240,7 +245,11 @@ def main():
     else:
         if not (score_dir / "ref_hgb_full.npz").exists():
             reference_models(sets, out, score_dir)
-        metrics = matched_runs(sets, sizes, seeds, out, score_dir)
+        if args.grids == "extended" and not (out / "kernel_diagnostics.csv").exists():
+            from sepsis6q import diagnostics
+            diagnostics.kernel_diagnostics(sets, out)
+            log("kernel diagnostics: done")
+        metrics = matched_runs(sets, sizes, seeds, out, score_dir, GRID_SETS[args.grids])
     if headline in set(metrics["N"]):
         bootstrap(sets, metrics, headline, seeds, n_boot, out, score_dir)
 
@@ -252,7 +261,7 @@ def main():
     from sepsis6q import plots
     plots.make_all(out)
     save_json({"total_seconds": time.perf_counter() - t0, "smoke": args.smoke, "sizes": sizes, "seeds": seeds,
-               "bootstrap_resamples": n_boot, "patient_file_limit": args.limit}, out / "run_info.json")
+               "bootstrap_resamples": n_boot, "patient_file_limit": args.limit, "grids": args.grids}, out / "run_info.json")
     log("finished")
 
 

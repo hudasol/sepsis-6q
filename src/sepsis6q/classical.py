@@ -24,10 +24,25 @@ MATCHED = list(GRIDS)
 CLASSICAL = ["logreg", "rbf_svm", "hgb"]
 QUANTUM = ["qsvm_zz", "qsvm_product"]
 
+# Wider grids for the post hoc sensitivity analysis (README section 7.8). The primary GRIDS above are not
+# changed. The RBF gamma range and the QSVM bandwidth range are both widened towards smaller values, and every
+# primary value stays inside the wider grid, so the sensitivity analysis can only differ from the primary
+# analysis where a new value wins the same cross validation. Logistic regression and boosted trees keep their
+# primary grids.
+EXTENDED_GRIDS = {
+    **GRIDS,
+    "rbf_svm": {"C": [0.1, 1.0, 10.0], "gamma": [0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0]},
+    "qsvm_zz": {"C": [0.1, 1.0, 10.0], "bandwidth": [0.02, 0.04, 0.08, 0.16, 0.25, 0.5, 1.0], "reps": [1, 2]},
+    "qsvm_product": {"C": [0.1, 1.0, 10.0], "bandwidth": [0.02, 0.04, 0.08, 0.16, 0.25, 0.5, 1.0],
+                     "reps": [1, 2]},
+}
+GRID_SETS = {"primary": GRIDS, "extended": EXTENDED_GRIDS}
 
-def grid(name):
-    keys = list(GRIDS[name])
-    return [dict(zip(keys, vals)) for vals in itertools.product(*GRIDS[name].values())]
+
+def grid(name, grids=None):
+    grids = GRIDS if grids is None else grids
+    keys = list(grids[name])
+    return [dict(zip(keys, vals)) for vals in itertools.product(*grids[name].values())]
 
 
 class RBFSVM(SVC):
@@ -74,14 +89,16 @@ def cv_splits(groups):
     return list(GroupKFold(n_splits=CV_FOLDS).split(np.zeros(len(groups)), groups=groups))
 
 
-def tune(name, X, y, groups):
-    """Patient grouped 3 fold cross validation, AUROC on the held out fold. Returns best params and the table."""
+def tune(name, X, y, groups, grids=None):
+    """Patient grouped 3 fold cross validation, AUROC on the held out fold. Returns best params and the table.
+
+    `grids` defaults to the primary GRIDS; the sensitivity analysis passes EXTENDED_GRIDS."""
     folds = cv_splits(groups)
     table = []
     if name in ("qsvm_zz", "qsvm_product"):
         entangled = name == "qsvm_zz"
         grams = {}
-        for params in grid(name):
+        for params in grid(name, grids):
             key = (params["bandwidth"], params["reps"])
             if key not in grams:
                 S = statevectors(angles(X, params["bandwidth"]), params["reps"], entangled)
@@ -93,7 +110,7 @@ def tune(name, X, y, groups):
                 aucs.append(roc_auc_score(y[te], svc.decision_function(K[np.ix_(te, tr)])))
             table.append({**params, "cv_auroc": float(np.mean(aucs))})
     else:
-        for params in grid(name):
+        for params in grid(name, grids):
             aucs = []
             for tr, te in folds:
                 model = make_classical(name, params).fit(X[tr], y[tr])
