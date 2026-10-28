@@ -44,12 +44,12 @@ def feature_map_circuit(x, reps, entangled):
     return qc
 
 
-def parameterized_feature_map(n, reps, entangled):
+def parameterized_feature_map(n, reps, entangled, prefix="x"):
     """Same map with free parameters, used for resource counts."""
     from qiskit import QuantumCircuit
     from qiskit.circuit import ParameterVector
 
-    x = ParameterVector("x", n)
+    x = ParameterVector(prefix, n)
     qc = QuantumCircuit(n)
     for _ in range(reps):
         qc.h(range(n))
